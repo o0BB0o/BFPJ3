@@ -31,7 +31,12 @@ class FirebaseViewModel: ViewModel() {
                     Log.d(TAG, "LogInWithEmail:success")
                     showMessage(context, "Logged in successfully")
                     val user = auth.currentUser
-                    navController.navigate("HomeScreen")
+                    navController.navigate("MainScreen") {
+                        popUpTo(navController.graph.startDestinationId) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
                 } else {
                     // If sign in fails, display a message to the user.
                     Log.w(TAG, "signInWithEmail:failure", task.exception)

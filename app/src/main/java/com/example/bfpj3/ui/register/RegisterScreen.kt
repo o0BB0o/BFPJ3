@@ -82,7 +82,7 @@ fun RegisterScreen(navController: NavController, auth: FirebaseAuth) {
 }
 @Preview(showBackground = true)
 @Composable
-fun LoginViewPreview() {
+fun RegisterViewPreview() {
     BFPJ3Theme {
         val navController = rememberNavController()
         val auth: FirebaseAuth = Firebase.auth
