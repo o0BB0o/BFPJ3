@@ -29,17 +29,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.bfpj3.ui.navigation.BottomNavItem
 import com.example.bfpj3.ui.theme.BFPJ3Theme
 import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingScreen(navController: NavController, auth: FirebaseAuth) {
-    // TODO USE VIEWMODEL
-    var selectedCurrency by remember { mutableStateOf("USD") }
-    var feedbackText by remember { mutableStateOf("") }
-    var rating by remember { mutableStateOf(0) }
+    val viewModel: SettingViewModel = viewModel()
+    var selectedCurrency by viewModel.selectedCurrency
+    var feedbackText by viewModel.feedbackText
+    var rating by viewModel.rating
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -74,7 +76,7 @@ fun SettingScreen(navController: NavController, auth: FirebaseAuth) {
             onClick = {
                 auth.signOut()
                 navController.navigate("LoginScreen") {
-                    popUpTo("home") {
+                    popUpTo(BottomNavItem.Home.route) {
                         inclusive = true
                     }
                     launchSingleTop = true

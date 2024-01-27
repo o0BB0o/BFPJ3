@@ -23,12 +23,6 @@ import com.google.firebase.auth.FirebaseAuth
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @Composable
 fun NavigationGraph(auth: FirebaseAuth) {
-    val items = listOf(
-        BottomNavItem.Home,
-        BottomNavItem.Trip,
-        BottomNavItem.Profile,
-        BottomNavItem.Settings
-    )
     val bottomBarState = rememberSaveable { (mutableStateOf(true)) }
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -48,7 +42,7 @@ fun NavigationGraph(auth: FirebaseAuth) {
         else -> {bottomBarState.value = false}
     }
     Scaffold(
-        bottomBar = { BottomNavigationBar(navController, bottomBarState, items) }
+        bottomBar = { BottomNavigationBar(navController, bottomBarState) }
     ) {
         NavHost(navController, startDestination = "LoginScreen") {
             composable(BottomNavItem.Home.route) { HomeScreen(navController) }

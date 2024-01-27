@@ -30,7 +30,13 @@ sealed class BottomNavItem(var route: String, var icon: ImageVector, var title: 
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavController, bottomBarState: MutableState<Boolean>, items: List<BottomNavItem>) {
+fun BottomNavigationBar(navController: NavController, bottomBarState: MutableState<Boolean>) {
+    val items = listOf(
+        BottomNavItem.Home,
+        BottomNavItem.Trip,
+        BottomNavItem.Profile,
+        BottomNavItem.Settings
+    )
     AnimatedVisibility(
         visible = bottomBarState.value,
         enter = slideInVertically(initialOffsetY = { it }),
@@ -46,7 +52,7 @@ fun BottomNavigationBar(navController: NavController, bottomBarState: MutableSta
                         selected = currentRoute == item.route,
                         onClick = {
                             navController.navigate(item.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
+                                popUpTo(BottomNavItem.Home.route) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
