@@ -31,7 +31,7 @@ class FirebaseViewModel: ViewModel() {
                     Log.d(TAG, "LogInWithEmail:success")
                     showMessage(context, "Logged in successfully")
                     val user = auth.currentUser
-                    navController.navigate("MainScreen") {
+                    navController.navigate("home") {
                         popUpTo(navController.graph.startDestinationId) {
                             inclusive = true
                         }

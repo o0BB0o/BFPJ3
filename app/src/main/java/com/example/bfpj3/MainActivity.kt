@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.bfpj3.ui.home.HomeScreen
 import com.example.bfpj3.ui.login.LoginScreen
+import com.example.bfpj3.ui.navigation.NavigationGraph
 import com.example.bfpj3.ui.register.RegisterScreen
 import com.example.bfpj3.ui.theme.BFPJ3Theme
 import com.google.firebase.Firebase
@@ -31,23 +32,24 @@ class MainActivity : ComponentActivity() {
         setContent {
             BFPJ3Theme {
                 // A surface container using the 'background' color from the theme
-                val navController = rememberNavController()
+//                val navController = rememberNavController()
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    NavigationGraph(auth)
                 }
-                NavHost(navController = navController, startDestination = "LoginScreen"){
-                    composable("LoginScreen") {
-                        LoginScreen(navController = navController, auth)
-                    }
-                    composable("RegisterScreen") {
-                        RegisterScreen(navController = navController, auth)
-                    }
-                    composable("MainScreen") {
-                        MainScreen()
-                    }
-                }
+//                NavHost(navController = navController, startDestination = "LoginScreen"){
+//                    composable("LoginScreen") {
+//                        LoginScreen(navController = navController, auth)
+//                    }
+//                    composable("RegisterScreen") {
+//                        RegisterScreen(navController = navController, auth)
+//                    }
+//                    composable("MainScreen") {
+//                        MainScreen()
+//                    }
+//                }
             }
         }
     }

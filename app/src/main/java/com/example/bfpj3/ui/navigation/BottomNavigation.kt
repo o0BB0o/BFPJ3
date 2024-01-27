@@ -30,13 +30,7 @@ sealed class BottomNavItem(var route: String, var icon: ImageVector, var title: 
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavController, bottomBarState: MutableState<Boolean>) {
-    val items = listOf(
-        BottomNavItem.Home,
-        BottomNavItem.Trip,
-        BottomNavItem.Profile,
-        BottomNavItem.Settings
-    )
+fun BottomNavigationBar(navController: NavController, bottomBarState: MutableState<Boolean>, items: List<BottomNavItem>) {
     AnimatedVisibility(
         visible = bottomBarState.value,
         enter = slideInVertically(initialOffsetY = { it }),
