@@ -21,17 +21,30 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.bfpj3.ui.login.Login
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+import com.example.bfpj3.database.FirebaseViewModel
 import com.example.bfpj3.ui.theme.BFPJ3Theme
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Register(navController: androidx.navigation.NavController) {
+fun RegisterScreen(navController: NavController, auth: FirebaseAuth) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var displayName by remember { mutableStateOf("") }
     var curLocation by remember { mutableStateOf("") }
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize()){
+    val firebaseViewModel: FirebaseViewModel = viewModel()
+    val context = LocalContext.current
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize()){
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -60,7 +73,9 @@ fun Register(navController: androidx.navigation.NavController) {
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { navController.navigate("Login")}) {
+        Button(onClick = {
+            firebaseViewModel.register(auth, email, password, context, navController)
+        }) {
             Text(text ="Register")
         }
     }
@@ -69,6 +84,8 @@ fun Register(navController: androidx.navigation.NavController) {
 @Composable
 fun LoginViewPreview() {
     BFPJ3Theme {
-        Register(navController = androidx.navigation.compose.rememberNavController())
+        val navController = rememberNavController()
+        val auth: FirebaseAuth = Firebase.auth
+        RegisterScreen(navController, auth)
     }
 }

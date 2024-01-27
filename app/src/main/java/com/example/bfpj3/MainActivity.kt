@@ -13,13 +13,21 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.bfpj3.ui.login.Login
-import com.example.bfpj3.ui.register.Register
+import com.example.bfpj3.ui.home.HomeScreen
+import com.example.bfpj3.ui.login.LoginScreen
+import com.example.bfpj3.ui.register.RegisterScreen
 import com.example.bfpj3.ui.theme.BFPJ3Theme
+import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 
 class MainActivity : ComponentActivity() {
+    private lateinit var auth: FirebaseAuth
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        FirebaseApp.initializeApp(this)
+        auth = Firebase.auth
         setContent {
             BFPJ3Theme {
                 // A surface container using the 'background' color from the theme
@@ -29,12 +37,15 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                 }
-                NavHost(navController = navController, startDestination = "Login"){
-                    composable("Login") {
-                        Login(navController = navController)
+                NavHost(navController = navController, startDestination = "LoginScreen"){
+                    composable("LoginScreen") {
+                        LoginScreen(navController = navController, auth)
                     }
-                    composable("Register") {
-                        Register(navController = navController)
+                    composable("RegisterScreen") {
+                        RegisterScreen(navController = navController, auth)
+                    }
+                    composable("HomeScreen") {
+                        HomeScreen(navController = navController)
                     }
                 }
             }
@@ -49,6 +60,7 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
         modifier = modifier
     )
 }
+
 
 @Preview(showBackground = true)
 @Composable

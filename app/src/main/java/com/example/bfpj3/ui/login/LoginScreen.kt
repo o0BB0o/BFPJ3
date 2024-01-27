@@ -26,21 +26,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.rememberNavController
+import com.example.bfpj3.database.FirebaseViewModel
 import com.example.bfpj3.ui.theme.BFPJ3Theme
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Login(navController: androidx.navigation.NavController) {
-    var account by remember { mutableStateOf("") }
+fun LoginScreen(navController: androidx.navigation.NavController, auth: FirebaseAuth) {
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    val firebaseViewModel: FirebaseViewModel = viewModel()
+    val context = LocalContext.current
 
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize()) {
         // Account TextField
         OutlinedTextField(
-            value = account,
-            onValueChange = { account = it },
+            value = email,
+            onValueChange = { email = it },
             label = { Text("Account") },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
         )
@@ -62,11 +71,15 @@ fun Login(navController: androidx.navigation.NavController) {
             }
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { /*TODO*/ }) {
+        Button(onClick = {
+            firebaseViewModel.login(auth, email, password, context, navController)
+        }) {
             Text(text ="Login")
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { navController.navigate("Register")}) {
+        Button(onClick = {
+            navController.navigate("RegisterScreen")
+        }) {
             Text(text ="Register")
         }
     }
@@ -75,6 +88,8 @@ fun Login(navController: androidx.navigation.NavController) {
 @Composable
 fun LoginViewPreview() {
     BFPJ3Theme {
-        Login(navController = androidx.navigation.compose.rememberNavController())
+        val navController = rememberNavController()
+        val auth: FirebaseAuth = Firebase.auth
+        LoginScreen(navController, auth)
     }
 }
