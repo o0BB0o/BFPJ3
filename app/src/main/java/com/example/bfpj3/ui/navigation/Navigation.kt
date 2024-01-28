@@ -1,5 +1,6 @@
 package com.example.bfpj3.ui.navigation
 
+import ReviewHistoryScreen
 import android.annotation.SuppressLint
 import androidx.compose.material.Scaffold
 import androidx.compose.runtime.Composable
@@ -47,11 +48,12 @@ fun NavigationGraph(auth: FirebaseAuth) {
         NavHost(navController, startDestination = "LoginScreen") {
             composable(BottomNavItem.Home.route) { HomeScreen(navController) }
             composable(BottomNavItem.Trip.route) { TripScreen() }
-            composable(BottomNavItem.Profile.route) { ProfileScreen() }
+            composable(BottomNavItem.Profile.route) { ProfileScreen(navController) }
             composable(BottomNavItem.Settings.route) { SettingScreen(navController, auth) }
             composable("destination_detail"){ DestinationDetail() }
             composable("LoginScreen") { LoginScreen(navController = navController, auth) }
             composable("RegisterScreen") { RegisterScreen(navController = navController, auth) }
+            composable("reviewHistory") { ReviewHistoryScreen(navController)}
         }
     }
 }
