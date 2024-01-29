@@ -1,5 +1,7 @@
 package com.example.bfpj3.ui.register
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -30,15 +32,17 @@ import com.example.bfpj3.ui.theme.BFPJ3Theme
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.firestore
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegisterScreen(navController: NavController, auth: FirebaseAuth) {
+fun RegisterScreen(navController: NavController, auth: FirebaseAuth, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var displayName by remember { mutableStateOf("") }
     var curLocation by remember { mutableStateOf("") }
-    val firebaseViewModel: FirebaseViewModel = viewModel()
     val context = LocalContext.current
 
     Column(
@@ -74,18 +78,21 @@ fun RegisterScreen(navController: NavController, auth: FirebaseAuth) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = {
-            firebaseViewModel.register(auth, email, password, context, navController)
+            firebaseViewModel.register(auth,email,password,displayName,curLocation,context,navController,db)
         }) {
             Text(text ="Register")
         }
     }
 }
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun RegisterViewPreview() {
     BFPJ3Theme {
         val navController = rememberNavController()
         val auth: FirebaseAuth = Firebase.auth
-        RegisterScreen(navController, auth)
+        val db = Firebase.firestore
+        val firebaseViewModel: FirebaseViewModel = viewModel()
+        RegisterScreen(navController, auth, db, firebaseViewModel)
     }
 }

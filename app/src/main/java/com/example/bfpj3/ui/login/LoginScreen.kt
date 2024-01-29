@@ -29,6 +29,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.bfpj3.database.FirebaseViewModel
 import com.example.bfpj3.ui.theme.BFPJ3Theme
@@ -38,11 +39,10 @@ import com.google.firebase.auth.auth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(navController: androidx.navigation.NavController, auth: FirebaseAuth) {
+fun LoginScreen(navController: NavController, auth: FirebaseAuth, firebaseViewModel: FirebaseViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    val firebaseViewModel: FirebaseViewModel = viewModel()
     val context = LocalContext.current
 
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize()) {
@@ -50,7 +50,7 @@ fun LoginScreen(navController: androidx.navigation.NavController, auth: Firebase
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Account") },
+            label = { Text("Email") },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -90,6 +90,7 @@ fun LoginViewPreview() {
     BFPJ3Theme {
         val navController = rememberNavController()
         val auth: FirebaseAuth = Firebase.auth
-        LoginScreen(navController, auth)
+        val firebaseViewModel: FirebaseViewModel = viewModel()
+        LoginScreen(navController, auth, firebaseViewModel)
     }
 }
