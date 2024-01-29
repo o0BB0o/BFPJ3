@@ -1,21 +1,49 @@
 package com.example.bfpj3.database
 import android.content.ContentValues.TAG
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.RequiresApi
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 class FirebaseViewModel: ViewModel() {
-    fun register(auth: FirebaseAuth, email: String, password: String, context: Context, navController: NavController) {
+    private var currentUserId: String = ""
+    private var _displayName = MutableStateFlow("Current Name")
+    val displayName: StateFlow<String> = _displayName
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun register(auth: FirebaseAuth,
+                 email: String,
+                 password: String,
+                 displayName: String,
+                 location: String,
+                 context: Context,
+                 navController: NavController,
+                 db: FirebaseFirestore
+    ) {
+        if (email.isBlank() || password.isBlank() || displayName.isBlank() || location.isBlank()) {
+            showMessage(context, "All fields are required")
+            return
+        }
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     Log.d(TAG, "createUserWithEmail:success")
                     showMessage(context, "Signed up successfully")
-                    val user = auth.currentUser
-                    val userId = user?.uid
+                    val userId = auth.currentUser!!.uid
+                    storeUserInfo(db,userId,displayName,email,password,emptyList(),emptyList(),emptyList(),"USD")
+                    storeProfileInfo(db,userId, displayName,location, getCurrentDate(), "","", emptyList())
                     navController.navigate("LoginScreen")
                 } else {
                     Log.w(TAG, "createUserWithEmail:failure", task.exception)
@@ -23,14 +51,72 @@ class FirebaseViewModel: ViewModel() {
                 }
             }
     }
+    private fun storeUserInfo(db: FirebaseFirestore,
+                              userId: String,
+                              displayName: String,
+                              email: String,
+                              password: String,
+                              reviewList: List<String>,
+                              tripList: List<String>,
+                              saveList: List<String>,
+                              currency: String,
+    ) {
+        val user = hashMapOf(
+            "displayName" to displayName,
+            "email" to email,
+            "password" to password,
+            "reviewList" to reviewList,
+            "tripList" to tripList,
+            "saveList" to saveList,
+            "currency" to currency,
+        )
+        db.collection("user $userId")
+            .document("user")
+            .set(user)
+            .addOnSuccessListener { documentReference ->
+                Log.d(TAG, "DocumentSnapshot added with ID: $documentReference")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Error adding document", e)
+            }
+    }
+    private fun storeProfileInfo(db: FirebaseFirestore,
+                              userId: String,
+                              displayName: String,
+                              location: String,
+                              joinDate: String,
+                              profilePicId: String,
+                              aboutYou: String,
+                              uploadedPhoto: List<String>,
+    ) {
+        val profile = hashMapOf(
+            "displayName" to displayName,
+            "location" to location,
+            "joinDate" to joinDate,
+            "profilePicId" to profilePicId,
+            "aboutYou" to aboutYou,
+            "uploadedPhoto" to uploadedPhoto,
+        )
+        db.collection("profile $userId")
+            .document("profile")
+            .set(profile)
+            .addOnSuccessListener { documentReference ->
+                Log.d(TAG, "DocumentSnapshot added with ID: $documentReference")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Error adding document", e)
+            }
+    }
+
     fun login(auth: FirebaseAuth, email: String, password: String, context: Context, navController: NavController) {
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener{ task ->
                 if (task.isSuccessful) {
-                    // Sign in success, update UI with the signed-in user's information
                     Log.d(TAG, "LogInWithEmail:success")
                     showMessage(context, "Logged in successfully")
-                    val user = auth.currentUser
+                    val userId = auth.currentUser!!.uid
+                    currentUserId = userId
+                    Log.d("zander", "currentId from login: $currentUserId")
                     navController.navigate("home") {
                         popUpTo(navController.graph.startDestinationId) {
                             inclusive = true
@@ -44,8 +130,55 @@ class FirebaseViewModel: ViewModel() {
                 }
             }
     }
+    fun getCurrentUserDisplayName(db: FirebaseFirestore) {
+        val userId = getCurrentUserId()
+        Log.d("zander", "currentId: $userId")
+        if (userId.isNotBlank()) {
+            db.collection("profile $userId")
+                .document("profile")
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document != null) {
+                        Log.d(TAG, "DocumentSnapshot data: ${document.data}")
+                        _displayName.value = document.data?.get("displayName").toString()
+                    } else {
+                        Log.d(TAG, "No such document")
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    Log.w(TAG, "Error getting documents.", exception)
+                }
+        } else {
+            Log.d("zander", "Empty userId trying getCurrentUserDisplayName")
+        }
+    }
 
+    fun saveNewDisplayName(db: FirebaseFirestore, newDisplayName:String) {
+        val userId = getCurrentUserId()
+        val docRef = db.collection("profile $userId").document("profile")
+
+        db.runTransaction { transaction ->
+            transaction.update(docRef, "displayName", newDisplayName)
+        }.addOnSuccessListener {
+            Log.d(TAG, "Transaction saveNewDisplayName: success!")
+            getCurrentUserDisplayName(db)
+        }.addOnFailureListener { e ->
+                Log.w(TAG, "Transaction saveNewDisplayName: failure", e)
+        }
+    }
     fun showMessage(context: Context, message:String){
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun getCurrentDate(): String {
+        // Get the current date
+        val currentDate = LocalDate.now()
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        return currentDate.format(formatter)
+    }
+
+    fun getCurrentUserId(): String {
+        return currentUserId
     }
 }

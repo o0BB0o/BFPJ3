@@ -1,5 +1,6 @@
 package com.example.bfpj3.ui.profile
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,10 +18,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.example.bfpj3.R
+import com.example.bfpj3.database.FirebaseViewModel
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
-fun ProfileScreen(navController: androidx.navigation.NavController) {
+fun ProfileScreen(navController: NavController, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     //TODO USE ViewModel
 //    var displayName by remember { mutableStateOf("") }
     var profileImageUri by remember { mutableStateOf<String?>(null) }
@@ -33,13 +37,16 @@ fun ProfileScreen(navController: androidx.navigation.NavController) {
     ) {
         ProfileImageSection(profileImageUri)
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Display Name: ", modifier = Modifier.align(Alignment.Start),
+        Text(
+            text = "Display Name: ",
+            modifier = Modifier.align(Alignment.Start),
             style = MaterialTheme.typography.headlineSmall)
-        Spacer(modifier = Modifier.height(8.dp))
-//        DisplayNameSection(displayName) { newName ->
-//            displayName = newName
-//        }
-        EditableNameField()
+            Spacer(modifier = Modifier.height(8.dp)
+        )
+//          DisplayNameSection(displayName) { newName ->
+//             displayName = newName
+//          }
+        EditableNameField(db,firebaseViewModel)
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = { navController.navigate("reviewHistory") }) {
             Text("Check Review History")
@@ -102,15 +109,20 @@ fun ProfileImageSection(profileImageUri: String?) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditableNameField() {
-    var name by remember { mutableStateOf("Current Name") }
-    var tempName by remember { mutableStateOf(name) }
+fun EditableNameField(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
+    val displayName by firebaseViewModel.displayName.collectAsState()
+    var tempName by remember { mutableStateOf("") }
     var inEditMode by remember { mutableStateOf(false) }
     val minHeight = 56.dp
 
+    LaunchedEffect(firebaseViewModel.displayName.collectAsState()) {
+        firebaseViewModel.getCurrentUserDisplayName(db)
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(start = 8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp)
     ) {
         if (inEditMode) {
             // TextField for editing the name with a minimum height
@@ -122,13 +134,13 @@ fun EditableNameField() {
                     .heightIn(min = minHeight)
             )
             IconButton(onClick = {
-                name = tempName
+                firebaseViewModel.saveNewDisplayName(db, tempName)
                 inEditMode = false
             }) {
                 Icon(Icons.Default.Check, contentDescription = "Save")
             }
             IconButton(onClick = {
-                tempName = name
+                tempName = displayName
                 inEditMode = false
             }) {
                 Icon(Icons.Default.Close, contentDescription = "Cancel")
@@ -139,11 +151,10 @@ fun EditableNameField() {
                 .weight(1f)
                 .heightIn(min = minHeight),
                 contentAlignment = Alignment.CenterStart) {
-                Text(text = name)
+                Text(text = displayName)
             }
             IconButton(onClick = {
                 inEditMode = true
-                tempName = name // Reset tempName to current name
             }) {
                 Icon(Icons.Default.Edit, contentDescription = "Edit")
             }
