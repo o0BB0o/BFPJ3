@@ -133,7 +133,7 @@ fun FilterTags(viewModel: HomeViewModel) {
     var currSelection by remember { mutableStateOf(HomeViewModel.FilteringOption.None) }
     Column {
         TextButton(onClick = { expanded = true }) {
-            Text("SortBy: ${currSelection.displayName}")
+            Text("Filter By: ${currSelection.displayName}")
         }
         DropdownMenu(
             expanded = expanded,
@@ -159,7 +159,7 @@ fun SortDropdownMenu(viewModel: HomeViewModel) {
     var currSelection by remember { mutableStateOf(HomeViewModel.SortingOption.Name) }
     Column {
         TextButton(onClick = { expanded = true }) {
-            Text("SortBy: ${currSelection.displayName}")
+            Text("Sort By: ${currSelection.displayName}")
         }
         DropdownMenu(
             expanded = expanded,

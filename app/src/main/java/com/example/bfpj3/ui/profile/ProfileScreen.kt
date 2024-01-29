@@ -25,16 +25,18 @@ import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
 fun ProfileScreen(navController: NavController, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
-    //TODO USE ViewModel
+    //TODO USE ViewModel or just use Firebase VM
 //    var displayName by remember { mutableStateOf("") }
     var profileImageUri by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(16.dp)
+            .padding(bottom = 60.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(modifier = Modifier.height(32.dp))
         ProfileImageSection(profileImageUri)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
@@ -51,7 +53,7 @@ fun ProfileScreen(navController: NavController, db: FirebaseFirestore, firebaseV
         Button(onClick = { navController.navigate("reviewHistory") }) {
             Text("Check Review History")
         }
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.weight(1f))
         DeleteAccountButton()
 
     }
