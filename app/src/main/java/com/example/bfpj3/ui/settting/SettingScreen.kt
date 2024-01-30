@@ -1,6 +1,7 @@
 package com.example.bfpj3.ui.settting
 
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,20 +44,25 @@ fun SettingScreen(navController: NavController, auth: FirebaseAuth) {
     var selectedCurrency by viewModel.selectedCurrency
     var feedbackText by viewModel.feedbackText
     var rating by viewModel.rating
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
             .padding(bottom = 60.dp)
     ) {
-        Text(text = "Change Currency",
+        Text(
+            text = "Change Currency",
             style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(top = 32.dp))
+            modifier = Modifier.padding(top = 32.dp)
+        )
         CurrencyDropdownMenu(selectedCurrency, onCurrencyChange = { selectedCurrency = it })
 
-        Text(text = "Feedback",
+        Text(
+            text = "Feedback",
             style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(top = 16.dp))
+            modifier = Modifier.padding(top = 16.dp)
+        )
 
         RatingBar(rating) { rating = it }
         TextField(
@@ -64,10 +71,22 @@ fun SettingScreen(navController: NavController, auth: FirebaseAuth) {
             label = { Text("Write a feedback for us!") },
             modifier = Modifier.fillMaxWidth()
         )
-        Button(onClick = {},//TODO
+        Button(
+            onClick = {
+                if (rating == 0) {
+                    Toast.makeText(context, "Please give us a rating!", Toast.LENGTH_SHORT).show()
+                }
+                else if (feedbackText == "") {
+                    Toast.makeText(context, "Please give us a feedback!", Toast.LENGTH_SHORT).show()
+                }
+                else {
+                    //TODO submit feedback （顺便把上面的全部放进VM）
+                }
+            },
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
-                .padding(top = 16.dp),) {
+                .padding(top = 16.dp),
+        ) {
             Text("Submit Feedback")
         }
 
@@ -127,7 +146,8 @@ fun RatingBar(currentRating: Int, onRatingChange: (Int) -> Unit) {
                 checked = currentRating >= index,
                 onCheckedChange = { onRatingChange(index) }
             ) {
-                val icon = if (currentRating >= index) Icons.Filled.Star else Icons.Filled.StarBorder
+                val icon =
+                    if (currentRating >= index) Icons.Filled.Star else Icons.Filled.StarBorder
                 Icon(icon, contentDescription = "Rating $index")
             }
         }

@@ -45,9 +45,6 @@ fun ProfileScreen(navController: NavController, db: FirebaseFirestore, firebaseV
             style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(8.dp)
         )
-//          DisplayNameSection(displayName) { newName ->
-//             displayName = newName
-//          }
         EditableNameField(db,firebaseViewModel)
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = { navController.navigate("reviewHistory") }) {
@@ -98,16 +95,6 @@ fun ProfileImageSection(profileImageUri: String?) {
         }
     }
 }
-
-//@OptIn(ExperimentalMaterial3Api::class)
-//@Composable
-//fun DisplayNameSection(displayName: String, onNameChange: (String) -> Unit) {
-//    OutlinedTextField(
-//        value = displayName,
-//        onValueChange = onNameChange,
-//        label = { Text("Display Name") }
-//    )
-//}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,11 +154,43 @@ fun EditableNameField(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
 
 @Composable
 fun DeleteAccountButton() {
-    Button(onClick = { /* TODO: Implement delete account functionality */ },
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+    var showConfirmationDialog by remember { mutableStateOf(false) }
+    Button(
+        onClick = { showConfirmationDialog = true },
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+    ) {
         Text("Delete Account", color = Color.White)
+    }
+    // Confirmation Dialog
+    if (showConfirmationDialog) {
+        ConfirmDeleteDialog(onConfirm = {
+            // TODO delete the account
+            showConfirmationDialog = false
+        }, onDismiss = {
+            showConfirmationDialog = false
+        })
     }
 }
 
-// Placeholder drawable resource
-// Replace with your actual drawable resource ID
+@Composable
+fun ConfirmDeleteDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Confirm Delete") },
+        text = { Text("Are you sure you want to delete your account? This action cannot be undone.") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) {
+                Text("Delete", color = Color.White)
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+

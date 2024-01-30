@@ -56,7 +56,9 @@ fun HomeScreen(navController: NavController) {
 
     val currentSortOption by viewModel.currentSortOption.observeAsState(HomeViewModel.SortingOption.Name)
     Column {
-        SearchBar()
+        SearchBar(onSearch = {searchInput ->
+            // TODO searchInput
+        })
         Row(modifier = Modifier
             .padding(start = 8.dp)
             .padding(end = 8.dp)) {
@@ -114,7 +116,7 @@ fun DestinationCard(destination: Destination, viewModel: HomeViewModel, onClick:
 }
 
 @Composable
-fun SearchBar(/*onSearch: (String) -> Unit*/) {
+fun SearchBar(onSearch: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     TextField(
@@ -128,7 +130,7 @@ fun SearchBar(/*onSearch: (String) -> Unit*/) {
         ),
         keyboardActions = KeyboardActions(
             onSearch = {
-                //onSearch(text) TODO
+                onSearch(text)
                 focusManager.clearFocus()
             }
         )
