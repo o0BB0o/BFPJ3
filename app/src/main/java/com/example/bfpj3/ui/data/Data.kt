@@ -22,6 +22,7 @@ data class Price(
 )
 
 data class Review(
+    val userId: String,
     val destination: String,
     val rating: Int,
     val title: String,

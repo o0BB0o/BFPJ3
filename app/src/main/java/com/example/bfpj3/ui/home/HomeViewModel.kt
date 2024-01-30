@@ -21,6 +21,7 @@ class HomeViewModel : ViewModel() {
         val currentTimestamp = Timestamp.now()
 
         val review1 = Review(
+            userId = "1",
             destination = "Eiffel Tower",
             rating = 5,
             title = "Amazing Experience",
@@ -29,6 +30,7 @@ class HomeViewModel : ViewModel() {
         )
 
         val review2 = Review(
+            userId = "2",
             destination = "Eiffel Tower",
             rating = 4,
             title = "Great but crowded",
@@ -37,6 +39,7 @@ class HomeViewModel : ViewModel() {
         )
 
         val review3 = Review(
+            userId = "3",
             destination = "Eiffel Tower",
             rating = 3,
             title = "Great but great",
@@ -44,6 +47,7 @@ class HomeViewModel : ViewModel() {
             timestamp = currentTimestamp
         )
         val review4 = Review(
+            userId = "4",
             destination = "Eiffel Tower",
             rating = 2,
             title = "Great but great",
