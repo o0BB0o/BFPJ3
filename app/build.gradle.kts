@@ -87,4 +87,5 @@ dependencies {
     implementation("androidx.compose.runtime:runtime-livedata:1.6.0")
     //img
     implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation ("androidx.compose.foundation:foundation:1.6.0")
 }

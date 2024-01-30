@@ -1,7 +1,9 @@
 package com.example.bfpj3.ui.settting
 
 
+import android.os.Build
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +24,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,18 +37,28 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.bfpj3.database.FirebaseViewModel
 import com.example.bfpj3.ui.navigation.BottomNavItem
 import com.example.bfpj3.ui.theme.BFPJ3Theme
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingScreen(navController: NavController, auth: FirebaseAuth) {
+fun SettingScreen(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel, navController: NavController, auth: FirebaseAuth) {
     val viewModel: SettingViewModel = viewModel()
-    var selectedCurrency by viewModel.selectedCurrency
-    var feedbackText by viewModel.feedbackText
-    var rating by viewModel.rating
+    // var selectedCurrency by viewModel.selectedCurrency
+    var feedbackText by remember {mutableStateOf("")}
+    var rating by remember {mutableStateOf(0)}
     val context = LocalContext.current
+
+    val userCurrency by firebaseViewModel.userCurrency.collectAsState()
+
+    LaunchedEffect(firebaseViewModel.userCurrency.collectAsState()) {
+        firebaseViewModel.getCurrentUserCurrencyFromUser(db)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -56,7 +70,11 @@ fun SettingScreen(navController: NavController, auth: FirebaseAuth) {
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(top = 32.dp)
         )
-        CurrencyDropdownMenu(selectedCurrency, onCurrencyChange = { selectedCurrency = it })
+        CurrencyDropdownMenu(userCurrency,
+            onCurrencyChange = { selectedCurrency ->
+                firebaseViewModel.updateCurrentUserCurrencyOnUser(db, selectedCurrency, context)
+            }
+        )
 
         Text(
             text = "Feedback",
@@ -73,15 +91,7 @@ fun SettingScreen(navController: NavController, auth: FirebaseAuth) {
         )
         Button(
             onClick = {
-                if (rating == 0) {
-                    Toast.makeText(context, "Please give us a rating!", Toast.LENGTH_SHORT).show()
-                }
-                else if (feedbackText == "") {
-                    Toast.makeText(context, "Please give us a feedback!", Toast.LENGTH_SHORT).show()
-                }
-                else {
-                    //TODO submit feedback （顺便把上面的全部放进VM）
-                }
+                firebaseViewModel.storeFeedbackInfo(db,rating,feedbackText,context)
             },
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
@@ -110,7 +120,7 @@ fun SettingScreen(navController: NavController, auth: FirebaseAuth) {
 
 
 @Composable
-fun CurrencyDropdownMenu(selectedCurrency: String, onCurrencyChange: (String) -> Unit) {
+fun CurrencyDropdownMenu(userCurrency: String, onCurrencyChange: (String) -> Unit) {
     // TODO
     var expanded by remember { mutableStateOf(false) }
     val currencies = listOf("USD", "EUR", "CNY")
@@ -119,7 +129,7 @@ fun CurrencyDropdownMenu(selectedCurrency: String, onCurrencyChange: (String) ->
         TextButton(
             onClick = { expanded = true }
         ) {
-            Text(text = "Selected Currency: $selectedCurrency")
+            Text(text = "Selected Currency: $userCurrency")
         }
         DropdownMenu(
             expanded = expanded,

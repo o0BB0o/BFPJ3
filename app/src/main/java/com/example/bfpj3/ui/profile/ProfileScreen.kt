@@ -1,6 +1,5 @@
 package com.example.bfpj3.ui.profile
 
-import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,15 +24,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
-import coil.compose.rememberImagePainter
 import com.example.bfpj3.R
 import com.example.bfpj3.database.FirebaseViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import coil.compose.rememberImagePainter
-import coil.request.ImageRequest
-import coil.transform.CircleCropTransformation
 
 @Composable
 fun ProfileScreen(navController: NavController, db: FirebaseFirestore, storage: FirebaseStorage, firebaseViewModel: FirebaseViewModel) {
@@ -59,7 +53,7 @@ fun ProfileScreen(navController: NavController, db: FirebaseFirestore, storage: 
             Text("Check Review History")
         }
         Spacer(modifier = Modifier.weight(1f))
-        DeleteAccountButton()
+        DeleteAccountButton(db, storage, firebaseViewModel, navController)
 
     }
 }
@@ -178,8 +172,9 @@ fun EditableNameField(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
 
 
 @Composable
-fun DeleteAccountButton() {
+fun DeleteAccountButton(db: FirebaseFirestore, storage: FirebaseStorage, firebaseViewModel: FirebaseViewModel, navController: NavController) {
     var showConfirmationDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     Button(
         onClick = { showConfirmationDialog = true },
         colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
@@ -190,6 +185,7 @@ fun DeleteAccountButton() {
     if (showConfirmationDialog) {
         ConfirmDeleteDialog(onConfirm = {
             // TODO delete the account
+            firebaseViewModel.deleteAccountAndData(db, storage, context,navController)
             showConfirmationDialog = false
         }, onDismiss = {
             showConfirmationDialog = false
