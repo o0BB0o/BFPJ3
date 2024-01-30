@@ -91,7 +91,7 @@ fun DestinationCard(destination: Destination, viewModel: HomeViewModel, onClick:
             )
             Column(modifier = Modifier.padding(8.dp)) {
                 Text(text = destination.name, style = MaterialTheme.typography.headlineMedium)
-                Text(text = "Rating: ${destination.rating}")
+                Text(text = "Rating: ${viewModel.getavgRating(destination)}")
                 Text(text = "Location: ${destination.location}")
                 Row(){
                     destination.tags.forEach { tag ->
