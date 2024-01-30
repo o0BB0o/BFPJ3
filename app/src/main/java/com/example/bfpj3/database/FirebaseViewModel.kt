@@ -1,17 +1,17 @@
 package com.example.bfpj3.database
 import android.content.ContentValues.TAG
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.util.Log
+import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.annotation.RequiresApi
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
@@ -21,6 +21,8 @@ class FirebaseViewModel: ViewModel() {
     private var currentUserId: String = ""
     private var _displayName = MutableStateFlow("Current Name")
     val displayName: StateFlow<String> = _displayName
+    private var _profilePicDownloadUri = MutableStateFlow("")
+    val profilePicDownloadUri: StateFlow<String> = _profilePicDownloadUri
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun register(auth: FirebaseAuth,
@@ -109,6 +111,10 @@ class FirebaseViewModel: ViewModel() {
     }
 
     fun login(auth: FirebaseAuth, email: String, password: String, context: Context, navController: NavController) {
+        if (email.isBlank() || password.isBlank()) {
+            showMessage(context, "All fields are required")
+            return
+        }
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener{ task ->
                 if (task.isSuccessful) {
@@ -130,7 +136,7 @@ class FirebaseViewModel: ViewModel() {
                 }
             }
     }
-    fun getCurrentUserDisplayName(db: FirebaseFirestore) {
+    fun getCurrentUserDisplayNameFromProfile(db: FirebaseFirestore) {
         val userId = getCurrentUserId()
         Log.d("zander", "currentId: $userId")
         if (userId.isNotBlank()) {
@@ -139,31 +145,93 @@ class FirebaseViewModel: ViewModel() {
                 .get()
                 .addOnSuccessListener { document ->
                     if (document != null) {
-                        Log.d(TAG, "DocumentSnapshot data: ${document.data}")
                         _displayName.value = document.data?.get("displayName").toString()
+                        Log.d(TAG, "getCurrentUserDisplayNameFromProfile: ${_displayName.value}")
                     } else {
                         Log.d(TAG, "No such document")
                     }
                 }
                 .addOnFailureListener { exception ->
-                    Log.w(TAG, "Error getting documents.", exception)
+                    Log.w(TAG, "Error getting documents: getCurrentUserDisplayNameFromProfile.", exception)
                 }
         } else {
-            Log.d("zander", "Empty userId trying getCurrentUserDisplayName")
+            Log.d("zander", "Empty userId: getCurrentUserDisplayNameFromProfile")
         }
     }
 
-    fun saveNewDisplayName(db: FirebaseFirestore, newDisplayName:String) {
+    fun updateDisplayNameOnProfile(db: FirebaseFirestore, newDisplayName:String) {
         val userId = getCurrentUserId()
         val docRef = db.collection("profile $userId").document("profile")
 
         db.runTransaction { transaction ->
             transaction.update(docRef, "displayName", newDisplayName)
         }.addOnSuccessListener {
-            Log.d(TAG, "Transaction saveNewDisplayName: success!")
-            getCurrentUserDisplayName(db)
+            Log.d(TAG, "Transaction updateDisplayNameOnProfile: success!")
+            getCurrentUserDisplayNameFromProfile(db)
         }.addOnFailureListener { e ->
-                Log.w(TAG, "Transaction saveNewDisplayName: failure", e)
+                Log.w(TAG, "Transaction updateDisplayNameOnProfile: failure", e)
+        }
+    }
+
+    fun updateCurrentUserProfilePic(db: FirebaseFirestore, storage: FirebaseStorage, uri: Uri, context: Context){
+        val userId = getCurrentUserId()
+        var storageRef = storage.reference
+        val fileExtension = MimeTypeMap.getFileExtensionFromUrl(uri.toString())
+        // val imageName = "${UUID.randomUUID()}.$fileExtension"
+        val imageName = "$userId.$fileExtension"
+        val imageRef = storageRef.child("profile_images/$imageName")
+
+        var uploadTask = imageRef.putFile(uri)
+        uploadTask.addOnSuccessListener {
+            // Image successfully uploaded, now get the download URL
+            imageRef.downloadUrl.addOnSuccessListener { downloadUri ->
+                // Use the value property to update the MutableStateFlow
+                _profilePicDownloadUri.value = downloadUri.toString()
+                updateProfilePicUriOnProfile(db,downloadUri.toString())
+                getCurrentUserProfilePicUriFromProfile(db)
+                Log.d(TAG, "updateProfilePic: success!")
+                Log.d(TAG, "updateCurrentUserProfilePic downloadUri: $downloadUri")
+                showMessage(context, "Profile image uploaded")
+            }.addOnFailureListener { exception ->
+                Log.e(TAG, "Failed to get download URL of updateProfilePic: $exception")
+            }
+        }.addOnFailureListener { exception ->
+            Log.e(TAG, "updateProfilePic failed: $exception")
+        }
+    }
+    fun updateProfilePicUriOnProfile(db: FirebaseFirestore, newProfilePicUri:String) {
+        val userId = getCurrentUserId()
+        val docRef = db.collection("profile $userId").document("profile")
+
+        db.runTransaction { transaction ->
+            transaction.update(docRef, "profilePicId", newProfilePicUri)
+        }.addOnSuccessListener {
+            Log.d(TAG, "Transaction updateProfilePicOnProfile: success!")
+            getCurrentUserDisplayNameFromProfile(db)
+        }.addOnFailureListener { e ->
+            Log.w(TAG, "Transaction updateProfilePicOnProfile: failure", e)
+        }
+    }
+    fun getCurrentUserProfilePicUriFromProfile(db: FirebaseFirestore) {
+        val userId = getCurrentUserId()
+        Log.d("zander", "currentId: $userId")
+        if (userId.isNotBlank()) {
+            db.collection("profile $userId")
+                .document("profile")
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document != null) {
+                        _profilePicDownloadUri.value = document.data?.get("profilePicId").toString()
+                        Log.d(TAG, "getCurrentUserProfilePicUriFromProfile: ${_profilePicDownloadUri.value}")
+                    } else {
+                        Log.d(TAG, "No such document: getCurrentUserProfilePicUriFromProfile")
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    Log.w(TAG, "Error getting documents: getCurrentUserProfilePicUriFromProfile", exception)
+                }
+        } else {
+            Log.d("zander", "Empty userId trying getCurrentUserProfilePicUriFromProfile")
         }
     }
     fun showMessage(context: Context, message:String){
@@ -181,4 +249,5 @@ class FirebaseViewModel: ViewModel() {
     fun getCurrentUserId(): String {
         return currentUserId
     }
+
 }

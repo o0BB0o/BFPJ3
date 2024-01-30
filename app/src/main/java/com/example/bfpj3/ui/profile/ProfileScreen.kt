@@ -1,6 +1,9 @@
 package com.example.bfpj3.ui.profile
 
-import android.util.Log
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,19 +19,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberImagePainter
 import com.example.bfpj3.R
 import com.example.bfpj3.database.FirebaseViewModel
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
+import coil.compose.rememberImagePainter
+import coil.request.ImageRequest
+import coil.transform.CircleCropTransformation
 
 @Composable
-fun ProfileScreen(navController: NavController, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
-    //TODO USE ViewModel or just use Firebase VM
-//    var displayName by remember { mutableStateOf("") }
-    var profileImageUri by remember { mutableStateOf<String?>(null) }
-
+fun ProfileScreen(navController: NavController, db: FirebaseFirestore, storage: FirebaseStorage, firebaseViewModel: FirebaseViewModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -37,7 +45,7 @@ fun ProfileScreen(navController: NavController, db: FirebaseFirestore, firebaseV
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(32.dp))
-        ProfileImageSection(profileImageUri)
+        ProfileImageSection(storage, db, firebaseViewModel)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Display Name: ",
@@ -57,20 +65,35 @@ fun ProfileScreen(navController: NavController, db: FirebaseFirestore, firebaseV
 }
 
 @Composable
-fun ProfileImageSection(profileImageUri: String?) {
+fun ProfileImageSection(storage: FirebaseStorage, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     val imageModifier = Modifier
         .size(100.dp)
         .clip(CircleShape)
         .border(2.dp, Color.Gray, CircleShape)
+    val profileImageUri by firebaseViewModel.profilePicDownloadUri.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(firebaseViewModel.profilePicDownloadUri.collectAsState()) {
+        firebaseViewModel.getCurrentUserProfilePicUriFromProfile(db)
+    }
+
+    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            // Handle the selected image URI by uploading it to Firebase Cloud Storage
+            firebaseViewModel.updateCurrentUserProfilePic(db, storage, selectedUri, context)
+        }
+    }
 
     Box {
-        if (profileImageUri != null) {
+        if (profileImageUri.isNotBlank()) {
             // TODO: Load the image from the URI
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = "Profile Picture",
-                modifier = imageModifier
-            )
+            AsyncImage(
+                model = profileImageUri,
+                modifier = imageModifier,
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.ic_launcher_foreground),
+                error = painterResource(id = R.drawable.ic_launcher_foreground),
+                contentDescription = "Image from Firebase")
         } else {
             Image(
                 painter = painterResource(id = R.drawable.ic_launcher_foreground),
@@ -80,7 +103,9 @@ fun ProfileImageSection(profileImageUri: String?) {
         }
 
         IconButton(
-            onClick = { }, // TODO
+            onClick = {
+                launcher.launch("image/*")
+            },
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .size(32.dp)
@@ -105,7 +130,7 @@ fun EditableNameField(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
     val minHeight = 56.dp
 
     LaunchedEffect(firebaseViewModel.displayName.collectAsState()) {
-        firebaseViewModel.getCurrentUserDisplayName(db)
+        firebaseViewModel.getCurrentUserDisplayNameFromProfile(db)
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -123,7 +148,7 @@ fun EditableNameField(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
                     .heightIn(min = minHeight)
             )
             IconButton(onClick = {
-                firebaseViewModel.saveNewDisplayName(db, tempName)
+                firebaseViewModel.updateDisplayNameOnProfile(db, tempName)
                 inEditMode = false
             }) {
                 Icon(Icons.Default.Check, contentDescription = "Save")
