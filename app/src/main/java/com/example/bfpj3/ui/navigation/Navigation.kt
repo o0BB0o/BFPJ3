@@ -55,7 +55,7 @@ fun NavigationGraph(auth: FirebaseAuth, db: FirebaseFirestore, storage: Firebase
             composable(BottomNavItem.Home.route) { HomeScreen(navController) }
             composable(BottomNavItem.Trip.route) { TripScreen() }
             composable(BottomNavItem.Profile.route) { ProfileScreen(navController, db, storage, firebaseViewModel) }
-            composable(BottomNavItem.Settings.route) { SettingScreen(navController, auth) }
+            composable(BottomNavItem.Settings.route) { SettingScreen(db,firebaseViewModel, navController, auth) }
             composable("destination_detail"){ DestinationDetail() }
             composable("LoginScreen") { LoginScreen(navController = navController, auth, firebaseViewModel) }
             composable("RegisterScreen") { RegisterScreen(navController = navController, auth, db,firebaseViewModel) }
