@@ -27,10 +27,12 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
+import com.google.firebase.storage.storage
 
 class MainActivity : ComponentActivity() {
     private lateinit var auth: FirebaseAuth
     val db = Firebase.firestore
+    val storage = Firebase.storage
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,7 +47,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    NavigationGraph(auth, db, firebaseViewModel)
+                    NavigationGraph(auth, db, storage, firebaseViewModel)
                 }
 //                NavHost(navController = navController, startDestination = "LoginScreen"){
 //                    composable("LoginScreen") {
