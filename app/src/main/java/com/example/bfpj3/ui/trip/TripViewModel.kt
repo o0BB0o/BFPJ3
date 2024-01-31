@@ -21,7 +21,7 @@ class TripViewModel : ViewModel() {
         val samplePrice = Price(199.99, "USD")
         val testPrice = Price(99.99, "USD")
         val testPrice2 = Price(299.99, "USD")
-        val currentTimestamp = Timestamp.now()
+        val currentTimestamp = Timestamp.now().toString()
 
         val review1 = Review(
             userId = "1",
@@ -59,12 +59,13 @@ class TripViewModel : ViewModel() {
         )
 
         val eiffelTower = Destination(
+            destinationId = "test case 1",
             name = "A Eiffel Tower",
             ownerOrganization = "City of Paris",
             location = "Paris, France",
             description = "Iconic tower offering expansive aerial views of Paris.",
             reviewList = listOf(review1, review2, review3),
-            price = samplePrice,
+            price = samplePrice.value,
             localLanguages = listOf("French"),
             ageRecommendation = "All ages",
             thingsTodo = listOf("Sightseeing", "Photography", "Dining"),
@@ -72,12 +73,13 @@ class TripViewModel : ViewModel() {
             imageUrl = "https://marvel-b1-cdn.bc0a.com/f00000000270502/s19538.pcdn.co/wp-content/uploads/2021/07/road-trip.jpg"
         )
         val eiffelTower2 = Destination(
+            destinationId = "test case 2",
             name = "B Eiffel Tower2",
             ownerOrganization = "City of Paris",
             location = "Paris, France",
             description = "Iconic tower offering expansive aerial views of Paris.",
             reviewList = listOf(review2, review3),
-            price = testPrice,
+            price = testPrice.value,
             localLanguages = listOf("French"),
             ageRecommendation = "All ages",
             thingsTodo = listOf("Sightseeing", "Photography", "Dining"),
@@ -85,12 +87,13 @@ class TripViewModel : ViewModel() {
             imageUrl = "https://marvel-b1-cdn.bc0a.com/f00000000270502/s19538.pcdn.co/wp-content/uploads/2021/07/road-trip.jpg"
         )
         val eiffelTower3 = Destination(
+            destinationId = "test case 3",
             name = "C Eiffel Tower3",
             ownerOrganization = "City of Paris",
             location = "Paris, France",
             description = "Iconic tower offering expansive aerial views of Paris.",
             reviewList = listOf(review3,review4),
-            price = testPrice2,
+            price = testPrice2.value,
             localLanguages = listOf("French"),
             ageRecommendation = "All ages",
             thingsTodo = listOf("Sightseeing", "Photography", "Dining"),

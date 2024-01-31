@@ -13,11 +13,12 @@ import java.time.format.DateTimeFormatter
 
 
 class HomeViewModel : ViewModel() {
-    val destinations = MutableLiveData<List<Destination>>()
+    private val destinations = MutableLiveData<List<Destination>>()
     var selectedDestination = MutableLiveData<Destination>()
     private val allDestinations = mutableListOf<Destination>()
     private var isReversed = MutableLiveData<Boolean>(false)
     var currentSortOption = MutableLiveData<SortingOption>(SortingOption.Name)
+    private var currentFilterOption: FilteringOption = FilteringOption.None
 //    init {
 //        //TODO DELETE THESE!! TEMP CARD ITEMS
 //        val samplePrice = Price(199.99, "USD")
@@ -135,7 +136,7 @@ class HomeViewModel : ViewModel() {
 
         val sortedList = when (currentSortOption.value ?: SortingOption.Name) {
             SortingOption.Name -> filteredList.sortedBy { it.name }
-            SortingOption.Price -> filteredList.sortedBy { it.price.value }
+            SortingOption.Price -> filteredList.sortedBy { it.price }
             SortingOption.Ratings -> filteredList.sortedByDescending { getavgRating(it) }
         }
 
