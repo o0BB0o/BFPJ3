@@ -75,7 +75,7 @@ fun HomeScreen(navController: NavController) {
                 .padding(bottom = 8.dp)
         ) {
             items(destinations) { destination ->
-                DestinationCard(destination, viewModel,
+                DestinationCard(destination,
                     onClick = {
                         viewModel.selectedDestination.value = destination
                         navController.navigate("destination_detail")})
@@ -87,7 +87,7 @@ fun HomeScreen(navController: NavController) {
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun DestinationCard(destination: Destination, viewModel: HomeViewModel, onClick: () -> Unit) {
+fun DestinationCard(destination: Destination, onClick: () -> Unit) {
     Card(modifier = Modifier
         .padding(8.dp)
         .fillMaxWidth()
