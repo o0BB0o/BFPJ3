@@ -20,8 +20,8 @@ import androidx.compose.material.Chip
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.Text
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TextField
 import androidx.compose.material.icons.Icons
@@ -88,6 +88,7 @@ fun HomeScreen(navController: NavController) {
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun DestinationCard(destination: Destination, onClick: () -> Unit) {
+    val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
     Card(modifier = Modifier
         .padding(8.dp)
         .fillMaxWidth()
