@@ -142,7 +142,7 @@ fun EditableNameField(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
                     .heightIn(min = minHeight)
             )
             IconButton(onClick = {
-                firebaseViewModel.updateDisplayNameOnProfile(db, tempName)
+                firebaseViewModel.updateDisplayNameOnProfileAndUser(db, tempName)
                 inEditMode = false
             }) {
                 Icon(Icons.Default.Check, contentDescription = "Save")

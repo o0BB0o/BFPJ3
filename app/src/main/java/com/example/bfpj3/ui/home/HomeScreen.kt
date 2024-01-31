@@ -1,7 +1,9 @@
 package com.example.bfpj3.ui.home
 
 
+import android.os.Build
 import androidx.activity.ComponentActivity
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -30,6 +32,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -46,15 +50,24 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
+import com.example.bfpj3.database.FirebaseViewModel
 import com.example.bfpj3.ui.data.Destination
 import com.example.bfpj3.ui.theme.BFPJ3Theme
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.firestore
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore) {
     val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
-    val destinations by viewModel.destinations.observeAsState(emptyList())
-
+    val destinations by firebaseViewModel.destinations.collectAsState()
     val currentSortOption by viewModel.currentSortOption.observeAsState(HomeViewModel.SortingOption.Name)
+
+    LaunchedEffect(firebaseViewModel.destinations.collectAsState()) {
+        firebaseViewModel.getAllDestinations(db)
+    }
+
     Column {
         SearchBar(onSearch = {searchInput ->
             // TODO searchInput
@@ -102,7 +115,7 @@ fun DestinationCard(destination: Destination, viewModel: HomeViewModel, onClick:
                 Text(text = destination.name, style = MaterialTheme.typography.headlineMedium)
                 Text(text = "Rating: ${viewModel.getavgRating(destination)}")
                 Text(text = "Location: ${destination.location}")
-                Text(text = "Price: ${destination.price.value} ${destination.price.currency}")
+                Text(text = "Price: ${destination.price}")
                 Row(){
                     destination.tags.forEach { tag ->
                         Chip(onClick = {}) {
@@ -137,6 +150,7 @@ fun SearchBar(onSearch: (String) -> Unit) {
     )
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun FilterTags(viewModel: HomeViewModel) {
     var expanded by remember { mutableStateOf(false) }
@@ -192,11 +206,14 @@ fun SortDropdownMenu(viewModel: HomeViewModel) {
 
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun HomePreview() {
     BFPJ3Theme {
         val navController = rememberNavController()
-        HomeScreen(navController)
+        val firebaseViewModel: FirebaseViewModel = viewModel()
+        val db = Firebase.firestore
+        HomeScreen(navController, firebaseViewModel, db)
     }
 }
