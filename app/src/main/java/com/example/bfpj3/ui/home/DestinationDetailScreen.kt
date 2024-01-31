@@ -1,6 +1,8 @@
 package com.example.bfpj3.ui.home
 
+import android.os.Build
 import androidx.activity.ComponentActivity
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -27,6 +29,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -35,21 +39,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.bfpj3.R
+import com.example.bfpj3.database.FirebaseViewModel
 import com.example.bfpj3.ui.data.Destination
 import com.example.bfpj3.ui.data.Review
+import com.google.firebase.firestore.FirebaseFirestore
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun DestinationDetail() {
+fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
     val destination by viewModel.selectedDestination.observeAsState()
-    Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
+    val context = LocalContext.current
+
+
+    Column(modifier = Modifier
+        .padding(16.dp)
+        .verticalScroll(rememberScrollState())) {
         Text(destination!!.name, style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(top = 32.dp))
         Text(destination!!.location)
@@ -75,13 +88,12 @@ fun DestinationDetail() {
         }
 
         Spacer(modifier = Modifier.size(16.dp))
-        ReviewsSection(destination!!, viewModel)
+        ReviewsSection(destination!!, viewModel, db, firebaseViewModel)
 
         Spacer(modifier = Modifier.size(16.dp))
         if (!viewModel.hasUserReviewed(destination!!)) {
-            WriteReviewSection(onSubmit = { rating, description ->
-                // viewModel.submitReview(destination, rating, description)
-                //TODO submit review
+            WriteReviewSection(onSubmit = { rating, description, title ->
+                firebaseViewModel.storeReviewInfoOnReview(db,destination!!.destinationId,rating,title,description, context)
             })
         }
     }
@@ -89,19 +101,27 @@ fun DestinationDetail() {
 
 
 @Composable
-fun ReviewsSection(destination: Destination, viewModel:HomeViewModel) {
+fun ReviewsSection(destination: Destination, viewModel:HomeViewModel, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     destination.reviewList.forEach { review ->
-        ReviewItem(review)
+        ReviewItem(review,db,firebaseViewModel)
     }
 }
 
 @Composable
-fun ReviewItem(review: Review) {
+fun ReviewItem(review: Review,db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     Row(modifier = Modifier.padding(top = 8.dp)) {
         // getUserInfo() TODO Need fun from Firebase for user Icon
         Column {
-            ProfileImageSection(null)
-            Text("User name") //TODO
+            var reviewDisplayName by remember { mutableStateOf("") }
+            var profileImageUri by remember { mutableStateOf("") }
+            firebaseViewModel.getUserDisplayNameByUserId(db,review.userId){ name ->
+                reviewDisplayName = name
+            }
+            firebaseViewModel.getUserProfileImageUriByUserId(db, review.userId){ uri ->
+                profileImageUri = uri
+            }
+            ProfileImageSection(profileImageUri)
+            Text(reviewDisplayName)
         }
 
         Column {
@@ -113,7 +133,7 @@ fun ReviewItem(review: Review) {
 }
 
 @Composable
-fun WriteReviewSection(onSubmit: (Int, String) -> Unit) {
+fun WriteReviewSection(onSubmit: (Int, String, String) -> Unit) {
     var rating by remember { mutableStateOf(0) } //TODO move to VM
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -122,7 +142,7 @@ fun WriteReviewSection(onSubmit: (Int, String) -> Unit) {
     ReviewTitleEdit(title) { title = it }
     ReviewContentEdit(description) { description = it }
     RatingBar(rating) { rating = it }
-    Button(onClick = { onSubmit(rating, description) }) {
+    Button(onClick = { onSubmit(rating, description, title) }) {
         Text("Submit Review")
     }
 }
@@ -204,8 +224,9 @@ fun ProfileImageSection(profileImageUri: String?) {
         if (profileImageUri != null) {
             // TODO: Load the image from the URI
             Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                painter = rememberAsyncImagePainter(model = profileImageUri),
                 contentDescription = "Profile Picture",
+                contentScale = ContentScale.Crop,
                 modifier = imageModifier
             )
         } else {

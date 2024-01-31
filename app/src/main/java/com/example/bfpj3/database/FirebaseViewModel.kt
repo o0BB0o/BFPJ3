@@ -9,6 +9,8 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
+import com.example.bfpj3.ui.data.Destination
+import com.example.bfpj3.ui.data.Review
 import com.example.bfpj3.ui.navigation.BottomNavItem
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -26,6 +28,8 @@ class FirebaseViewModel: ViewModel() {
     val profilePicDownloadUri: StateFlow<String> = _profilePicDownloadUri
     private var _userCurrency = MutableStateFlow("")
     val userCurrency: StateFlow<String> = _userCurrency
+    private var _destinations = MutableStateFlow<MutableList<Destination>>(mutableListOf())
+    val destinations: StateFlow<List<Destination>> = _destinations
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun register(auth: FirebaseAuth,
@@ -163,17 +167,27 @@ class FirebaseViewModel: ViewModel() {
         }
     }
 
-    fun updateDisplayNameOnProfile(db: FirebaseFirestore, newDisplayName:String) {
+    fun updateDisplayNameOnProfileAndUser(db: FirebaseFirestore, newDisplayName:String) {
         val userId = getCurrentUserId()
-        val docRef = db.collection("profiles").document("profile $userId")
+        val profileDocRef = db.collection("profiles").document("profile $userId")
+        val userDocRef = db.collection("users").document("user $userId")
 
         db.runTransaction { transaction ->
-            transaction.update(docRef, "displayName", newDisplayName)
+            transaction.update(profileDocRef, "displayName", newDisplayName)
         }.addOnSuccessListener {
-            Log.d(TAG, "Transaction updateDisplayNameOnProfile: success!")
+            Log.d(TAG, "Transaction updateDisplayNameOnProfileAndUser: success!")
             getCurrentUserDisplayNameFromProfile(db)
         }.addOnFailureListener { e ->
-                Log.w(TAG, "Transaction updateDisplayNameOnProfile: failure", e)
+                Log.w(TAG, "Transaction updateDisplayNameOnProfileAndUser: failure", e)
+        }
+
+        db.runTransaction { transaction ->
+            transaction.update(userDocRef, "displayName", newDisplayName)
+        }.addOnSuccessListener {
+            Log.d(TAG, "Transaction updateDisplayNameOnProfileAndUser: success!")
+            getCurrentUserDisplayNameFromProfile(db)
+        }.addOnFailureListener { e ->
+            Log.w(TAG, "Transaction updateDisplayNameOnProfileAndUser: failure", e)
         }
     }
     //Profile Picture
@@ -375,6 +389,220 @@ class FirebaseViewModel: ViewModel() {
                 Log.w(TAG, "Error storeFeedbackInfo", e)
             }
     }
+    //destinations----document: 1
+    //
+
+    fun getAllDestinations(db: FirebaseFirestore) {
+        db.collection("destinations")
+            .get()
+            .addOnSuccessListener { result ->
+                val newDestinations = mutableListOf<Destination>()
+                //for each destination
+                for (document in result) {
+                    // Extract values from the document
+                    val destinationId = document.getString("destinationId") ?: ""
+                    val name = document.getString("name") ?: ""
+                    val ownerOrganization = document.getString("ownerOrganization") ?: ""
+                    val location = document.getString("location") ?: ""
+                    val description = document.getString("description") ?: ""
+                    val reviewIdList = document.get("reviewIdList") as? List<String> ?: emptyList()
+                    val price = document.getDouble("price") ?: 0.0
+                    val localLanguageList = document.get("localLanguageList") as? List<String> ?: emptyList()
+                    val ageRecommendation = document.getString("ageRecommendation") ?: ""
+                    val thingsTodoList = document.get("thingsTodoList") as? List<String> ?: emptyList()
+                    val tagList = document.get("tagList") as? List<String> ?: emptyList()
+                    val imageUrl = document.getString("imageUrl") ?: ""
+
+                    val reviewList = mutableListOf<Review>()
+                    //if a destination has no review
+                    if(reviewIdList.isEmpty()){
+                        val destination = Destination(
+                            destinationId,
+                            name,
+                            ownerOrganization,
+                            location,
+                            description,
+                            reviewList,
+                            price,
+                            localLanguageList,
+                            ageRecommendation,
+                            thingsTodoList,
+                            tagList,
+                            imageUrl
+                        )
+                        newDestinations.add(destination)
+                    }
+
+                    for (reviewId in reviewIdList) {
+                        getReviewInfoFromReview(db, reviewId) { review ->
+                            reviewList.add(review)
+                            Log.d(TAG, "current reviewlist size: ${reviewList.size}")
+                            // Check if all reviews for this destination have been retrieved
+                            if (reviewList.size == reviewIdList.size) {
+                                val destination = Destination(
+                                    destinationId,
+                                    name,
+                                    ownerOrganization,
+                                    location,
+                                    description,
+                                    reviewList,
+                                    price,
+                                    localLanguageList,
+                                    ageRecommendation,
+                                    thingsTodoList,
+                                    tagList,
+                                    imageUrl
+                                )
+                                newDestinations.add(destination)
+                            }
+                        }
+                    }
+                }
+
+                _destinations.value = newDestinations
+                Log.d(TAG, "success: getAllDestinations")
+                Log.d(TAG, "Destinations $newDestinations")
+            }
+            .addOnFailureListener { exception ->
+                Log.d(TAG, "Failed: getAllDestinations: $exception")
+            }
+    }
+    // Destination detail screen
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun storeReviewInfoOnReview(db: FirebaseFirestore,
+                                destinationId: String,
+                                rating: Int,
+                                title: String,
+                                description: String,
+                                context: Context
+    ) {
+        if(rating==0 || title.isBlank() || description.isBlank()){
+            showMessage(context, "All fields are required to leave a review")
+            return
+        }
+        val userId = getCurrentUserId()
+        val review = hashMapOf(
+            "userId" to userId,
+            "destinationId" to destinationId,
+            "rating" to rating,
+            "title" to title,
+            "description" to description,
+            "timestamp" to getCurrentDate(),
+        )
+        db.collection("reviews")
+            .add(review)
+            .addOnSuccessListener { documentReference ->
+                val generatedId = documentReference.id
+                Log.d(TAG, "success: storeReviewInfoOnReview with id: $generatedId")
+                Log.d(TAG, "destinationId: $destinationId")
+                addReviewIdOnDestination(db, destinationId, generatedId, context)
+            }
+            .addOnFailureListener { e ->
+                Log.d(TAG, "failed: storeReviewInfoOnReview with id: $e")
+            }
+
+    }
+    fun getReviewInfoFromReview(db: FirebaseFirestore, reviewId: String, callback: (Review) -> Unit){
+        val review = Review("","", 0, "","","")
+        Log.d(TAG, "empty review initialzed here")
+        db.collection("reviews")
+            .document(reviewId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists() && document != null ) {
+                    review.userId = document.data?.get("userId").toString()
+                    review.destination = document.data?.get("destination").toString()
+                    review.rating = (document.data?.get("rating") as Number).toInt()
+                    review.title = document.data?.get("title").toString()
+                    review.description = document.data?.get("description").toString()
+                    review.timestamp = document.data?.get("timestamp").toString()
+                    Log.d(TAG, "getReviewInfoFromReview: Success")
+                } else {
+                    Log.d(TAG, "No such document")
+                }
+                callback(review)
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: getReviewInfoFromReview", exception)
+                callback(review)
+            }
+    }
+    fun addReviewIdOnDestination(db: FirebaseFirestore,
+                                 destinationId: String,
+                                 generatedId: String,
+                                 context: Context
+    ) {
+        val docRef = db.collection("destinations").document(destinationId)
+
+        db.runTransaction { transaction ->
+            val currentList = transaction.get(docRef).get("reviewIdList")
+                              as? MutableList<String> ?: mutableListOf()
+            currentList.add(generatedId)
+            transaction.update(docRef, "reviewIdList", currentList)
+        }
+        .addOnSuccessListener {
+            Log.d(TAG, "Transaction success: ReviewId added to destination $generatedId")
+            showMessage(context,"Review Added")
+        }
+        .addOnFailureListener { e ->
+            Log.w(TAG, "Transaction failure: ReviewId added to destination $generatedId\": $e")
+        }
+    }
+
+    fun getReviewsByDestinationId(db: FirebaseFirestore) {
+        val userId = getCurrentUserId()
+        Log.d("zander", "currentId: $userId")
+        if (userId.isNotBlank()) {
+            db.collection("reviews")
+
+        }
+    }
+    fun getUserDisplayNameByUserId(db: FirebaseFirestore, userId: String, callback: (String) -> Unit) {
+        Log.d("zander", "currentId: $userId")
+        if (userId.isNotBlank()) {
+            db.collection("profiles")
+                .document("profile $userId")
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document != null) {
+                        val displayName = document.data?.get("displayName").toString()
+                        callback(displayName)
+                        Log.d(TAG, "getUserDisplayNameByUserId: $displayName")
+                    } else {
+                        Log.d(TAG, "No such document")
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    Log.w(TAG, "Error getting documents: getUserDisplayNameByUserId", exception)
+                }
+        } else {
+            Log.d("zander", "Empty userId: getUserDisplayNameByUserId")
+        }
+    }
+    fun getUserProfileImageUriByUserId(db: FirebaseFirestore, userId: String, callback: (String) -> Unit) {
+        Log.d("zander", "currentId: $userId")
+        if (userId.isNotBlank()) {
+            db.collection("profiles")
+                .document("profile $userId")
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document != null) {
+                        val profileImageUri = document.data?.get("profilePicId").toString()
+                        callback(profileImageUri)
+                        Log.d(TAG, "getUserProfileImageUriByUserId: $profileImageUri")
+                    } else {
+                        Log.d(TAG, "No such document")
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    Log.w(TAG, "Error getting documents: getUserProfileImageUriByUserId", exception)
+                }
+        } else {
+            Log.d("zander", "Empty userId: getUserProfileImageUriByUserId")
+        }
+    }
+
+
     fun showMessage(context: Context, message:String){
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
