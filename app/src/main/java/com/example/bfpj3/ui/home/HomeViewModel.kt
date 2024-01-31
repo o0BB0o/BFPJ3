@@ -74,4 +74,15 @@ class HomeViewModel : ViewModel() {
         isReversed.value = !(isReversed.value ?: false)
         applyCurrentFiltersAndSort()
     }
+
+    fun priceExchanger(usdPrice: Double, currCurrency: String): String {
+        val exchangeRateToEUR = 0.92
+        val exchangeRateToCNY = 7.1
+        val shownPrice = when (currCurrency) {
+            "EUR" -> "€%.2f".format(usdPrice * exchangeRateToEUR)
+            "CNY" -> "￥%.2f".format(usdPrice * exchangeRateToCNY)
+            else -> "$%.2f".format(usdPrice)
+        }
+        return shownPrice
+    }
 }
