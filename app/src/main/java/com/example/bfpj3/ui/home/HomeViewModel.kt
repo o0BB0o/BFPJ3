@@ -11,8 +11,9 @@ class HomeViewModel : ViewModel() {
     val destinations = MutableLiveData<List<Destination>>()
     var selectedDestination = MutableLiveData<Destination>()
     private val allDestinations = mutableListOf<Destination>()
-    var isReversed = MutableLiveData<Boolean>(false)
+    private var isReversed = MutableLiveData<Boolean>(false)
     var currentSortOption = MutableLiveData<SortingOption>(SortingOption.Name)
+    private var currentFilterOption: FilteringOption = FilteringOption.None
     init {
         //TODO DELETE THESE!! TEMP CARD ITEMS
         val samplePrice = Price(199.99, "USD")
@@ -113,23 +114,27 @@ class HomeViewModel : ViewModel() {
     }
 
     fun sortDestinations(sortOption: SortingOption) { //TODO
-        destinations.value = when (sortOption) {
-            SortingOption.Name -> allDestinations.sortedBy { it.name }
-            SortingOption.Price -> allDestinations.sortedBy {it.price.value}
-            SortingOption.Ratings -> allDestinations.sortedByDescending {getavgRating(it)}
-        }
-        destinations.value = if (isReversed.value == true) {
-            destinations.value!!.reversed()
-        } else {
-            destinations.value
-        }
+        currentSortOption.value = sortOption
+        applyCurrentFiltersAndSort()
     }
 
     fun filterProducts(filterOption: FilteringOption) { //TODO
-        destinations.value = when (filterOption) {
+        currentFilterOption = filterOption
+        applyCurrentFiltersAndSort()
+    }
+    private fun applyCurrentFiltersAndSort() {
+        val filteredList = when (currentFilterOption) {
             FilteringOption.None -> allDestinations
-            else -> allDestinations.filter { filterOption.displayName in it.tags }
+            else -> allDestinations.filter { currentFilterOption.displayName in it.tags }
         }
+
+        val sortedList = when (currentSortOption.value ?: SortingOption.Name) {
+            SortingOption.Name -> filteredList.sortedBy { it.name }
+            SortingOption.Price -> filteredList.sortedBy { it.price.value }
+            SortingOption.Ratings -> filteredList.sortedByDescending { getavgRating(it) }
+        }
+
+        destinations.value = if (isReversed.value == true) sortedList.reversed() else sortedList
     }
 
     fun getavgRating(d:Destination): Double {
@@ -145,7 +150,7 @@ class HomeViewModel : ViewModel() {
         return false
     }
     fun toggleSortOrder(currentSortOption: SortingOption? = null) {
-        isReversed.value = isReversed.value != true
-        sortDestinations(currentSortOption ?: SortingOption.Name)
+        isReversed.value = !(isReversed.value ?: false)
+        applyCurrentFiltersAndSort()
     }
 }
