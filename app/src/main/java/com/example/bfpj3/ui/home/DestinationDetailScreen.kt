@@ -3,7 +3,6 @@ package com.example.bfpj3.ui.home
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,13 +28,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -44,7 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
 import com.example.bfpj3.R
 import com.example.bfpj3.database.FirebaseViewModel
 import com.example.bfpj3.ui.data.Destination
@@ -66,13 +64,14 @@ fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
         Text(destination!!.name, style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(top = 32.dp))
         Text(destination!!.location)
-        Image(
-            painter = rememberAsyncImagePainter(model = destination!!.imageUrl),
-            contentDescription = "Destination Image",
+        AsyncImage(
+            model = destination!!.imageUrl,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
-        )
+                .height(200.dp),
+            placeholder = painterResource(id = R.drawable.ic_launcher_foreground),
+            error = painterResource(id = R.drawable.ic_launcher_foreground),
+            contentDescription = "Destination Image")
         val avgRating = viewModel.getavgRating(destination!!)
         Text("Average Rating: $avgRating",
             style = MaterialTheme.typography.headlineSmall)
@@ -110,8 +109,7 @@ fun ReviewsSection(destination: Destination, viewModel:HomeViewModel, db: Fireba
 @Composable
 fun ReviewItem(review: Review,db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     Row(modifier = Modifier.padding(top = 8.dp)) {
-        // getUserInfo() TODO Need fun from Firebase for user Icon
-        Column {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.size(100.dp)) {
             var reviewDisplayName by remember { mutableStateOf("") }
             var profileImageUri by remember { mutableStateOf("") }
             firebaseViewModel.getUserDisplayNameByUserId(db,review.userId){ name ->
@@ -123,7 +121,7 @@ fun ReviewItem(review: Review,db: FirebaseFirestore, firebaseViewModel: Firebase
             ProfileImageSection(profileImageUri)
             Text(reviewDisplayName)
         }
-
+        Spacer(modifier = Modifier.size(8.dp))
         Column {
             Text(review.title, style = MaterialTheme.typography.headlineSmall)
             ReviewRatingBar(review.rating)
@@ -221,20 +219,12 @@ fun ProfileImageSection(profileImageUri: String?) {
         .border(2.dp, Color.Gray, CircleShape)
 
     Box {
-        if (profileImageUri != null) {
-            // TODO: Load the image from the URI
-            Image(
-                painter = rememberAsyncImagePainter(model = profileImageUri),
-                contentDescription = "Profile Picture",
-                contentScale = ContentScale.Crop,
-                modifier = imageModifier
-            )
-        } else {
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = "Profile Picture Placeholder",
-                modifier = imageModifier
-            )
-        }
+        AsyncImage(
+            model = profileImageUri,
+            modifier = imageModifier,
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(id = R.drawable.ic_launcher_foreground),
+            error = painterResource(id = R.drawable.ic_launcher_foreground),
+            contentDescription = "Profile Image")
     }
 }
