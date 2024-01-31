@@ -21,6 +21,7 @@ import com.example.bfpj3.ui.login.LoginScreen
 import com.example.bfpj3.ui.profile.ProfileScreen
 import com.example.bfpj3.ui.register.RegisterScreen
 import com.example.bfpj3.ui.settting.SettingScreen
+import com.example.bfpj3.ui.trip.AddNewTripScreen
 import com.example.bfpj3.ui.trip.TripScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -52,14 +53,16 @@ fun NavigationGraph(auth: FirebaseAuth, db: FirebaseFirestore, storage: Firebase
         bottomBar = { BottomNavigationBar(navController, bottomBarState) }
     ) {
         NavHost(navController, startDestination = "LoginScreen") {
+
             composable(BottomNavItem.Home.route) { HomeScreen(navController, firebaseViewModel, db) }
-            composable(BottomNavItem.Trip.route) { TripScreen() }
+            composable(BottomNavItem.Trip.route) { TripScreen(navController) }
             composable(BottomNavItem.Profile.route) { ProfileScreen(navController, db, storage, firebaseViewModel) }
             composable(BottomNavItem.Settings.route) { SettingScreen(db,firebaseViewModel, navController, auth) }
             composable("destination_detail"){ DestinationDetail(db,firebaseViewModel) }
             composable("LoginScreen") { LoginScreen(navController = navController, auth, firebaseViewModel) }
             composable("RegisterScreen") { RegisterScreen(navController = navController, auth, db,firebaseViewModel) }
             composable("reviewHistory") { ReviewHistoryScreen(navController)}
+            composable("addNewTripScreen") { AddNewTripScreen() }
         }
     }
 }

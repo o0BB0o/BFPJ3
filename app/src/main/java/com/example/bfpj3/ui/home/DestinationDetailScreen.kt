@@ -152,7 +152,10 @@ fun WriteReviewSection(onSubmit: (Int, String, String) -> Unit) {
 fun ReviewTitleEdit(title: String, onTitleChange: (String) -> Unit) {
     TextField(
         value = title,
-        onValueChange = onTitleChange,
+        onValueChange = { newText ->
+            val filteredText = newText.replace("\n", "")
+            onTitleChange(filteredText)
+        },
         modifier = Modifier.fillMaxWidth(),
         label = { Text("Title") }
     )
@@ -161,11 +164,25 @@ fun ReviewTitleEdit(title: String, onTitleChange: (String) -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewContentEdit(content: String, onContentChange: (String) -> Unit) {
+    val wordCount = content.trim().split("\\s+".toRegex()).count { it.isNotEmpty() }
+    val isOverLimit = wordCount > 100
+
     TextField(
         value = content,
-        onValueChange = onContentChange,
-        modifier = Modifier.fillMaxWidth(),
-        label = { Text("Write your review here!") }
+        onValueChange = { newText ->
+            val newWordCount = newText.trim().split("\\s+".toRegex()).count { it.isNotEmpty() }
+            if (newWordCount <= 100) {
+                onContentChange(newText)
+            }
+        },
+        modifier = Modifier.fillMaxWidth().height(120.dp),
+        label = { Text("Write your review here!") },
+        trailingIcon = {
+            Text(
+                text = "$wordCount/100",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
     )
 }
 

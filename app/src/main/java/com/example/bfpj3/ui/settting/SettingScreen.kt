@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
@@ -87,7 +88,7 @@ fun SettingScreen(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel, n
             value = feedbackText,
             onValueChange = { feedbackText = it },
             label = { Text("Write a feedback for us!") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().height(120.dp)
         )
         Button(
             onClick = {
