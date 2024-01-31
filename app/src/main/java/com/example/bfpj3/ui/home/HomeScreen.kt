@@ -72,7 +72,7 @@ fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewMode
     val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
     val destinations by firebaseViewModel.destinations.collectAsState(listOf())
     val currentSortOption by viewModel.currentSortOption.observeAsState(HomeViewModel.SortingOption.Name)
-
+    val currentCurrency by firebaseViewModel.userCurrency.collectAsState("USD")
     LaunchedEffect(firebaseViewModel.destinations.collectAsState()) {
         firebaseViewModel.getAllDestinations(db)
     }
@@ -97,7 +97,7 @@ fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewMode
                 .padding(bottom = 8.dp)
         ) {
             items(destinations) { destination ->
-                DestinationCard(destination,
+                DestinationCard(destination, currentCurrency,
                     onClick = {
                         viewModel.selectedDestination.value = destination
                         navController.navigate("destination_detail")})
@@ -109,7 +109,7 @@ fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewMode
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun DestinationCard(destination: Destination, onClick: () -> Unit) {
+fun DestinationCard(destination: Destination, currentCurrency: String, onClick: () -> Unit) {
     var showAddToTripDialog by remember { mutableStateOf(false) }
     val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
     Card(modifier = Modifier
@@ -133,7 +133,7 @@ fun DestinationCard(destination: Destination, onClick: () -> Unit) {
                 Text(text = destination.name, style = MaterialTheme.typography.headlineMedium)
                 Text(text = "Rating: ${viewModel.getavgRating(destination)}")
                 Text(text = "Location: ${destination.location}")
-                Text(text = "Price: ${destination.price}")
+                Text(text = "Price: ${viewModel.priceExchanger(destination.price, currentCurrency)}")
                 Row(){
                     destination.tags.forEach { tag ->
                         Chip(onClick = {}) {

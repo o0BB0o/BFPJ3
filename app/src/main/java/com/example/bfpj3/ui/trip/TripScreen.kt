@@ -184,7 +184,7 @@ fun DestinationList(trip: Trip) {
     for (destination in destinations) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
-                DestinationCard(destination, onClick = {})
+                DestinationCard(destination, "USD" ,onClick = {})
             }
 
             IconButton(
