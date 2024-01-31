@@ -25,11 +25,12 @@ import com.example.bfpj3.ui.trip.AddNewTripScreen
 import com.example.bfpj3.ui.trip.TripScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 
 @RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @Composable
-fun NavigationGraph(auth: FirebaseAuth, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
+fun NavigationGraph(auth: FirebaseAuth, db: FirebaseFirestore, storage: FirebaseStorage, firebaseViewModel: FirebaseViewModel) {
     val bottomBarState = rememberSaveable { (mutableStateOf(true)) }
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -54,8 +55,8 @@ fun NavigationGraph(auth: FirebaseAuth, db: FirebaseFirestore, firebaseViewModel
         NavHost(navController, startDestination = "LoginScreen") {
             composable(BottomNavItem.Home.route) { HomeScreen(navController) }
             composable(BottomNavItem.Trip.route) { TripScreen(navController) }
-            composable(BottomNavItem.Profile.route) { ProfileScreen(navController, db, firebaseViewModel) }
-            composable(BottomNavItem.Settings.route) { SettingScreen(navController, auth) }
+            composable(BottomNavItem.Profile.route) { ProfileScreen(navController, db, storage, firebaseViewModel) }
+            composable(BottomNavItem.Settings.route) { SettingScreen(db,firebaseViewModel, navController, auth) }
             composable("destination_detail"){ DestinationDetail() }
             composable("LoginScreen") { LoginScreen(navController = navController, auth, firebaseViewModel) }
             composable("RegisterScreen") { RegisterScreen(navController = navController, auth, db,firebaseViewModel) }

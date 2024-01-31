@@ -76,6 +76,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-storage")
 
     //navigation
     implementation("androidx.navigation:navigation-compose:2.8.0-alpha01")
@@ -87,4 +88,5 @@ dependencies {
     implementation("androidx.compose.runtime:runtime-livedata:1.6.0")
     //img
     implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation ("androidx.compose.foundation:foundation:1.6.0")
 }

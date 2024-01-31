@@ -1,11 +1,31 @@
 package com.example.bfpj3.ui.data
 
-import com.example.bfpj3.ui.home.HomeViewModel
+import com.google.firebase.Timestamp
 
-data class Destination( // TODO Not FINAL DESTINATION
+data class Destination(
     val name: String,
-    val imageUrl: String,
-    val rating: Double,
+    val ownerOrganization: String,
     val location: String,
-    val tags: List<String>
+    val description: String,
+    val reviewList: List<Review>,
+    val price: Price,
+    val localLanguages: List<String>,
+    val ageRecommendation: String,
+    val thingsTodo: List<String>,
+    val tags: List<String>,
+    val imageUrl: String
+)
+
+data class Price(
+    val value: Double,
+    val currency: String
+)
+
+data class Review(
+    val userId: String,
+    val destination: String,
+    val rating: Int,
+    val title: String,
+    val description: String,
+    val timestamp: Timestamp
 )

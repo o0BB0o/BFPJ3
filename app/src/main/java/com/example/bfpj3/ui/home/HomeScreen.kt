@@ -20,10 +20,12 @@ import androidx.compose.material.Chip
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -51,14 +53,21 @@ import com.example.bfpj3.ui.theme.BFPJ3Theme
 fun HomeScreen(navController: NavController) {
     val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
     val destinations by viewModel.destinations.observeAsState(emptyList())
+
+    val currentSortOption by viewModel.currentSortOption.observeAsState(HomeViewModel.SortingOption.Name)
     Column {
-        SearchBar()
+        SearchBar(onSearch = {searchInput ->
+            // TODO searchInput
+        })
         Row(modifier = Modifier
             .padding(start = 8.dp)
             .padding(end = 8.dp)) {
             FilterTags(viewModel)
             Spacer(modifier = Modifier.weight(1f))
             SortDropdownMenu(viewModel)
+            IconButton(onClick = { viewModel.toggleSortOrder(currentSortOption) }) {
+                Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Reverse Sort Order")
+            }
         }
         LazyColumn(
             modifier = Modifier
@@ -91,8 +100,9 @@ fun DestinationCard(destination: Destination, onClick: () -> Unit) {
             )
             Column(modifier = Modifier.padding(8.dp)) {
                 Text(text = destination.name, style = MaterialTheme.typography.headlineMedium)
-                Text(text = "Rating: ${destination.rating}")
+                Text(text = "Rating: ${viewModel.getavgRating(destination)}")
                 Text(text = "Location: ${destination.location}")
+                Text(text = "Price: ${destination.price.value} ${destination.price.currency}")
                 Row(){
                     destination.tags.forEach { tag ->
                         Chip(onClick = {}) {
@@ -106,7 +116,7 @@ fun DestinationCard(destination: Destination, onClick: () -> Unit) {
 }
 
 @Composable
-fun SearchBar(/*onSearch: (String) -> Unit*/) {
+fun SearchBar(onSearch: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     TextField(
@@ -120,7 +130,7 @@ fun SearchBar(/*onSearch: (String) -> Unit*/) {
         ),
         keyboardActions = KeyboardActions(
             onSearch = {
-                //onSearch(text) TODO
+                onSearch(text)
                 focusManager.clearFocus()
             }
         )
@@ -133,7 +143,7 @@ fun FilterTags(viewModel: HomeViewModel) {
     var currSelection by remember { mutableStateOf(HomeViewModel.FilteringOption.None) }
     Column {
         TextButton(onClick = { expanded = true }) {
-            Text("SortBy: ${currSelection.displayName}")
+            Text("Filter By: ${currSelection.displayName}")
         }
         DropdownMenu(
             expanded = expanded,
@@ -159,7 +169,7 @@ fun SortDropdownMenu(viewModel: HomeViewModel) {
     var currSelection by remember { mutableStateOf(HomeViewModel.SortingOption.Name) }
     Column {
         TextButton(onClick = { expanded = true }) {
-            Text("SortBy: ${currSelection.displayName}")
+            Text("Sort By: ${currSelection.displayName}")
         }
         DropdownMenu(
             expanded = expanded,
@@ -171,6 +181,7 @@ fun SortDropdownMenu(viewModel: HomeViewModel) {
                     onClick = {
                         expanded = false
                         currSelection = option
+                        viewModel.currentSortOption.value = option
                         viewModel.sortDestinations(option)
                     }
                 )

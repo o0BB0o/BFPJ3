@@ -1,6 +1,8 @@
 package com.example.bfpj3.ui.profile
 
-import android.util.Log
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,26 +18,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.bfpj3.R
 import com.example.bfpj3.database.FirebaseViewModel
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 
 @Composable
-fun ProfileScreen(navController: NavController, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
-    //TODO USE ViewModel
-//    var displayName by remember { mutableStateOf("") }
-    var profileImageUri by remember { mutableStateOf<String?>(null) }
-
+fun ProfileScreen(navController: NavController, db: FirebaseFirestore, storage: FirebaseStorage, firebaseViewModel: FirebaseViewModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(16.dp)
+            .padding(bottom = 60.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        ProfileImageSection(profileImageUri)
+        Spacer(modifier = Modifier.height(32.dp))
+        ProfileImageSection(storage, db, firebaseViewModel)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Display Name: ",
@@ -43,35 +47,47 @@ fun ProfileScreen(navController: NavController, db: FirebaseFirestore, firebaseV
             style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(8.dp)
         )
-//          DisplayNameSection(displayName) { newName ->
-//             displayName = newName
-//          }
         EditableNameField(db,firebaseViewModel)
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = { navController.navigate("reviewHistory") }) {
             Text("Check Review History")
         }
-        Spacer(modifier = Modifier.height(32.dp))
-        DeleteAccountButton()
+        Spacer(modifier = Modifier.weight(1f))
+        DeleteAccountButton(db, storage, firebaseViewModel, navController)
 
     }
 }
 
 @Composable
-fun ProfileImageSection(profileImageUri: String?) {
+fun ProfileImageSection(storage: FirebaseStorage, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     val imageModifier = Modifier
         .size(100.dp)
         .clip(CircleShape)
         .border(2.dp, Color.Gray, CircleShape)
+    val profileImageUri by firebaseViewModel.profilePicDownloadUri.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(firebaseViewModel.profilePicDownloadUri.collectAsState()) {
+        firebaseViewModel.getCurrentUserProfilePicUriFromProfile(db)
+    }
+
+    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            // Handle the selected image URI by uploading it to Firebase Cloud Storage
+            firebaseViewModel.updateCurrentUserProfilePic(db, storage, selectedUri, context)
+        }
+    }
 
     Box {
-        if (profileImageUri != null) {
+        if (profileImageUri.isNotBlank()) {
             // TODO: Load the image from the URI
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = "Profile Picture",
-                modifier = imageModifier
-            )
+            AsyncImage(
+                model = profileImageUri,
+                modifier = imageModifier,
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.ic_launcher_foreground),
+                error = painterResource(id = R.drawable.ic_launcher_foreground),
+                contentDescription = "Image from Firebase")
         } else {
             Image(
                 painter = painterResource(id = R.drawable.ic_launcher_foreground),
@@ -81,7 +97,9 @@ fun ProfileImageSection(profileImageUri: String?) {
         }
 
         IconButton(
-            onClick = { }, // TODO
+            onClick = {
+                launcher.launch("image/*")
+            },
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .size(32.dp)
@@ -97,16 +115,6 @@ fun ProfileImageSection(profileImageUri: String?) {
     }
 }
 
-//@OptIn(ExperimentalMaterial3Api::class)
-//@Composable
-//fun DisplayNameSection(displayName: String, onNameChange: (String) -> Unit) {
-//    OutlinedTextField(
-//        value = displayName,
-//        onValueChange = onNameChange,
-//        label = { Text("Display Name") }
-//    )
-//}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditableNameField(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
@@ -116,7 +124,7 @@ fun EditableNameField(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
     val minHeight = 56.dp
 
     LaunchedEffect(firebaseViewModel.displayName.collectAsState()) {
-        firebaseViewModel.getCurrentUserDisplayName(db)
+        firebaseViewModel.getCurrentUserDisplayNameFromProfile(db)
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -134,7 +142,7 @@ fun EditableNameField(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
                     .heightIn(min = minHeight)
             )
             IconButton(onClick = {
-                firebaseViewModel.saveNewDisplayName(db, tempName)
+                firebaseViewModel.updateDisplayNameOnProfile(db, tempName)
                 inEditMode = false
             }) {
                 Icon(Icons.Default.Check, contentDescription = "Save")
@@ -164,12 +172,46 @@ fun EditableNameField(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
 
 
 @Composable
-fun DeleteAccountButton() {
-    Button(onClick = { /* TODO: Implement delete account functionality */ },
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+fun DeleteAccountButton(db: FirebaseFirestore, storage: FirebaseStorage, firebaseViewModel: FirebaseViewModel, navController: NavController) {
+    var showConfirmationDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    Button(
+        onClick = { showConfirmationDialog = true },
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+    ) {
         Text("Delete Account", color = Color.White)
+    }
+    // Confirmation Dialog
+    if (showConfirmationDialog) {
+        ConfirmDeleteDialog(onConfirm = {
+            // TODO delete the account
+            firebaseViewModel.deleteAccountAndData(db, storage, context,navController)
+            showConfirmationDialog = false
+        }, onDismiss = {
+            showConfirmationDialog = false
+        })
     }
 }
 
-// Placeholder drawable resource
-// Replace with your actual drawable resource ID
+@Composable
+fun ConfirmDeleteDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Confirm Delete") },
+        text = { Text("Are you sure you want to delete your account? This action cannot be undone.") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) {
+                Text("Delete", color = Color.White)
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
