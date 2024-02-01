@@ -107,8 +107,11 @@ fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
     }
     if (showAddToTripDialog) {
         AddToTripDialog(
+            firebaseViewModel,
+            db,
+            destination!!.destinationId,
             onDismiss = { showAddToTripDialog = false },
-            onSelectTrip = { selectedTrip ->
+            onSelectTripId = { selectedTrip ->
                 //TODO add to destination to trip
                 //viewModel.addToTrip(destination, selectedTrip)
                 showAddToTripDialog = false

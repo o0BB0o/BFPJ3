@@ -57,13 +57,13 @@ import com.google.firebase.firestore.FirebaseFirestore
 fun TripScreen(navController: NavController, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     val tripViewModel: TripViewModel = viewModel(LocalContext.current as ComponentActivity)
 
-    val trips by firebaseViewModel.trips.collectAsState()
+    val trips by firebaseViewModel.allTrips.collectAsState()
     val selectedTrip by tripViewModel.selectedTrip.observeAsState()
 
-    LaunchedEffect(firebaseViewModel.trips.collectAsState()) {
+    LaunchedEffect(firebaseViewModel.allTrips.collectAsState()) {
         firebaseViewModel.getAllTrip(db)
     }
-
+    Text(text = "trips size: ${trips.size}")
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -75,7 +75,6 @@ fun TripScreen(navController: NavController, db: FirebaseFirestore, firebaseView
                 navController.navigate("addNewTripScreen")
             }
         }
-
         // Display list of trips
         items(trips) { trip ->
             TripCard(trip, selectedTrip, tripViewModel,db,firebaseViewModel)
@@ -177,24 +176,25 @@ fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel, db: 
             Spacer(modifier = Modifier.height(8.dp))
             // Display list of destinations for the selected trip
             if (selectedTrip == trip) {
-                DestinationList(trip)
+                DestinationList(trip,firebaseViewModel, db)
             }
         }
     }
 }
 
 @Composable
-fun DestinationList(trip: Trip) {
+fun DestinationList(trip: Trip, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore) {
     val destinations = mutableStateListOf(*trip.destinations.toTypedArray())
 
     // State to track if the confirmation dialog should be shown
     val showConfirmationDialog = remember { mutableStateOf(false) }
     var selectedDestination by remember { mutableStateOf<Destination?>(null) }
+    val context = LocalContext.current
 
     for (destination in destinations) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
-                DestinationCard(destination, "USD" ,onClick = {})
+                DestinationCard(destination, "USD" , firebaseViewModel,db,onClick = {})
             }
 
             IconButton(
@@ -220,6 +220,7 @@ fun DestinationList(trip: Trip) {
                 // Remove the destination from the list, update the ViewModel, etc.
                 destinations.remove(selectedDestination)
                 trip.destinations = destinations
+                firebaseViewModel.removeDestinationFromTrip(db, trip.tripId, selectedDestination!!.destinationId,context)
             },
             onCancel = {
                 // Close the confirmation dialog

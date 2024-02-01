@@ -7,7 +7,6 @@ import android.util.Log
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.annotation.RequiresApi
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import com.example.bfpj3.ui.data.Destination
@@ -21,7 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -59,11 +57,11 @@ class FirebaseViewModel: ViewModel() {
         }
 
 
-    private var _trips = MutableStateFlow<MutableList<Trip>>(mutableListOf())
-    val trips: StateFlow<List<Trip>> = _trips
+    private var _allTrips = MutableStateFlow<MutableList<Trip>>(mutableListOf())
+    val allTrips: StateFlow<List<Trip>> = _allTrips
 
-    private var _currentUserTrips = MutableStateFlow<MutableList<Trip>>(mutableListOf())
-    val currentUserTrips: StateFlow<List<Trip>> = _currentUserTrips
+    private var _currentUserTrips = MutableStateFlow<MutableList<Pair<String, String>>>(mutableListOf())
+    val currentUserTrips: StateFlow<List<Pair<String, String>>> = _currentUserTrips
 
     private var _currentUserReviews = MutableStateFlow<MutableList<Review>>(mutableListOf())
     val currentUserReviews: StateFlow<List<Review>> = _currentUserReviews
@@ -291,6 +289,10 @@ class FirebaseViewModel: ViewModel() {
     }
     //Delete Account
     fun deleteAccountAndData(db: FirebaseFirestore, storage: FirebaseStorage, context: Context, navController: NavController){
+        deleteCurrentUserTrips(db){}
+        deleteCurrentUserReviews(db){}
+        deleteCurrentUserProfilePic(storage, context){}
+
         //Delete user's info
         val userId = getCurrentUserId()
         db.collection("users")
@@ -312,8 +314,6 @@ class FirebaseViewModel: ViewModel() {
                 Log.w(TAG, "Error deleting profile info", e)
             }
 
-        deleteCurrentUserProfilePic(storage, context)
-
         //Delete Auth
         val user = FirebaseAuth.getInstance().currentUser
         user?.delete()
@@ -332,7 +332,119 @@ class FirebaseViewModel: ViewModel() {
                 }
             }
     }
-    fun deleteCurrentUserProfilePic(storage: FirebaseStorage, context: Context) {
+    fun deleteCurrentUserTrips(db: FirebaseFirestore, callback: (String) -> Unit){
+        val userId = getCurrentUserId()
+        //Get all the tripIds created by this user
+        db.collection("users")
+            .document("user $userId")
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    val tripIdList = document.get("tripIdList") as? MutableList<String> ?: mutableListOf()
+                    var successCount = 0
+                    for(tripId in tripIdList){
+                        db.collection("trips")
+                            .document(tripId)
+                            .delete()
+                            .addOnSuccessListener {
+                                successCount++
+                            }
+                            .addOnFailureListener { e ->
+                                Log.w(TAG, "Error deleteCurrentUserTrips tripId: $tripId", e)
+                            }
+                        if(successCount==tripIdList.size){
+                            callback("proceed")
+                        }
+                    }
+
+                    Log.d(TAG, "Success: deleteCurrentUserTrips")
+                } else {
+                    Log.d(TAG, "No such document: deleteCurrentUserTrips")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: deleteCurrentUserTrips", exception)
+            }
+    }
+    fun deleteCurrentUserReviews(db: FirebaseFirestore, callback: (String) -> Unit){
+        val userId = getCurrentUserId()
+        //Get all the reviewIds created by this user
+        db.collection("users")
+            .document("user $userId")
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    val reviewIdList = document.get("reviewIdList") as? MutableList<String> ?: mutableListOf()
+                    var successCount = 0
+                    for(reviewId in reviewIdList){
+                        getDestinationIdByReviewIdFromReview(db, reviewId){ destinationId ->
+                            //delete reviewIds on destination
+                            deleteReviewIdOnDestination(db,destinationId, reviewId)
+                            //delete review info
+                            db.collection("reviews")
+                                .document(reviewId)
+                                .delete()
+                                .addOnSuccessListener {
+                                    successCount++
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.w(TAG, "Error deleteCurrentUserReviews Id: $reviewId", e)
+                                }
+                        }
+                        if(successCount==reviewIdList.size){
+                            callback("proceed")
+                        }
+                    }
+                } else {
+                    Log.d(TAG, "No such document: deleteCurrentUserReviews")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: deleteCurrentUserReviews", exception)
+            }
+    }
+    fun getDestinationIdByReviewIdFromReview(db: FirebaseFirestore, reviewId: String, callback: (String) -> Unit){
+        db.collection("reviews")
+            .document(reviewId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    callback(document.data?.get("destinationId").toString())
+                    Log.d(TAG, "success: getDestinationIdByReviewId")
+                } else {
+                    Log.d(TAG, "No such document: getDestinationIdByReviewId")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: getDestinationIdByReviewId", exception)
+            }
+    }
+    fun deleteReviewIdOnDestination(db: FirebaseFirestore, destinationId: String, reviewId: String){
+        val docRef = db.collection("destinations").document(destinationId)
+
+        db.runTransaction { transaction ->
+            val currentList = transaction.get(docRef).get("reviewIdList")
+                    as? MutableList<String> ?: mutableListOf()
+
+            // Find the index of the reviewId in the list
+            val index = currentList.indexOf(reviewId)
+            if (index != -1) {
+                // Remove the reviewId from the list if it exists
+                currentList.removeAt(index)
+                transaction.update(docRef, "reviewIdList", currentList)
+                Log.d(TAG, "ReviewId $reviewId removed for deleting account")
+            } else {
+                Log.d(TAG, "ReviewId $reviewId not found in the list")
+            }
+        }
+            .addOnSuccessListener {
+                Log.d(TAG, "Transaction success: deleteReviewOnDestination $reviewId")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Transaction failure: deleteReviewOnDestination $reviewId\": $e")
+            }
+    }
+    fun deleteCurrentUserProfilePic(storage: FirebaseStorage, context: Context, callback: (String) -> Unit) {
         val userId = getCurrentUserId()
         val storageRef = storage.reference.child("profile_images")
 
@@ -702,7 +814,10 @@ class FirebaseViewModel: ViewModel() {
                 .get()
                 .addOnSuccessListener { document ->
                     if (document != null) {
-                        val displayName = document.data?.get("displayName").toString()
+                        var displayName = document.data?.get("displayName").toString()
+                        if(displayName == "null"){
+                            displayName = "Deleted Account"
+                        }
                         callback(displayName)
                         Log.d(TAG, "getUserDisplayNameByUserId: $displayName")
                     } else {
@@ -809,6 +924,7 @@ class FirebaseViewModel: ViewModel() {
             .addOnSuccessListener { result ->
                 val currentUserId = getCurrentUserId()
                 val newTrips = mutableListOf<Trip>()
+                // for every trip
                 for (document in result) {
                     val tripId = document.getString("tripId") ?: ""
                     val userId = document.getString("userId") ?: ""
@@ -823,45 +939,33 @@ class FirebaseViewModel: ViewModel() {
                     if(!isPublic && currentUserId!=userId) continue
 
                     val destinationList = mutableListOf<Destination>()
-                    //if a trip has no destination
-                    if (destinationIdList.isEmpty()) {
-                        val trip = Trip(
-                            tripId,
-                            userId,
-                            destinationList,
-                            numOfPeople,
-                            parseStringToLocalDate(startDate),
-                            parseStringToLocalDate(endDate),
-                            title,
-                            description,
-                            isPublic
-                        )
-                        newTrips.add(trip)
-                    }
 
+                    //add all destinations of a trip to its destinationList
                     for (destinationId in destinationIdList) {
                         val matchingDestination =
                             _destinations.value.find {
                                 it.destinationId == destinationId
                             }
+                        //add destination info
                         matchingDestination?.let {
                             destinationList.add(it)
                         }
-                        val trip = Trip(
-                            tripId,
-                            userId,
-                            destinationList,
-                            numOfPeople,
-                            parseStringToLocalDate(startDate),
-                            parseStringToLocalDate(endDate),
-                            title,
-                            description,
-                            isPublic
-                        )
-                        newTrips.add(trip)
                     }
+                    val trip = Trip(
+                        tripId,
+                        userId,
+                        destinationList,
+                        numOfPeople,
+                        parseStringToLocalDate(startDate),
+                        parseStringToLocalDate(endDate),
+                        title,
+                        description,
+                        isPublic
+                    )
+                    newTrips.add(trip)
+
                 }
-                _trips.value = newTrips
+                _allTrips.value = newTrips
                 Log.w(TAG, "Success getting documents: getAllTrip")
 
             }.addOnFailureListener { exception ->
@@ -885,11 +989,14 @@ class FirebaseViewModel: ViewModel() {
             Log.w(TAG, "Transaction updateIsPublicForTrip: failure", e)
         }
     }
+    // Custom exception class for duplicate destination
+    class DuplicateDestinationException(message: String) : Exception(message)
     // Save this destination to a trip current user created
+    @RequiresApi(Build.VERSION_CODES.O)
     fun addDestinationIdOnTrip(db: FirebaseFirestore,
-                        tripId: String,
-                        destinationId: String,
-                        context: Context
+                               tripId: String,
+                               destinationId: String,
+                               context: Context
     ) {
         val docRef = db.collection("trips").document(tripId)
 
@@ -900,35 +1007,42 @@ class FirebaseViewModel: ViewModel() {
                 currentIdList.add(destinationId)
                 transaction.update(docRef, "destinationIdList", currentIdList)
             } else {
-                showMessage(context,"Cannot add duplicate destination")
                 Log.d(TAG, "Cannot add duplicate destination")
-                return@runTransaction
+                throw DuplicateDestinationException("Cannot Add Duplicate Destination")
             }
         }
         .addOnSuccessListener {
-            Log.d(TAG, "Transaction success: TripId added to tripList on user")
-            showMessage(context,"Trip Added")
+            Log.d(TAG, "Transaction success: DestinationId added to tripList on trip")
+            showMessage(context,"Destination Added to trip")
+            //refresh all trips
+            getAllTrip(db)
         }
         .addOnFailureListener { e ->
-            Log.w(TAG, "Transaction failure: TripId added to tripList on user: $e")
+            Log.w(TAG, "Transaction failure: DestinationId added to tripList on trip: $e")
+            if (e is DuplicateDestinationException) {
+                // Handle the custom exception
+                showMessage(context, e.message!!)
+            } else {
+                Log.w(TAG, "Transaction failure: DestinationId added to tripList on trip: $e")
+            }
         }
     }
     //On a destination detail screen, user can get the tripId and tripTitle of the trips they created
-    fun getTripsForCurrentUser(db: FirebaseFirestore, callback: (List<Pair<String, String>>) -> Unit){
+    fun getCurrentUserTrips(db: FirebaseFirestore){
         val userId = getCurrentUserId()
         db.collection("users")
             .document("user $userId")
             .get()
             .addOnSuccessListener { document ->
                 if (document != null) {
-                    val tripIdList = document.get("destinationIdList") as? MutableList<String> ?: mutableListOf()
+                    val tripIdList = document.get("tripIdList") as? MutableList<String> ?: mutableListOf()
                     val tripTitleList = mutableListOf<Pair<String, String>>()
                     for (tripId in tripIdList) {
                         getTripTitleByTripId(db, tripId) { tripTitle ->
                             tripTitleList.add(Pair(tripId, tripTitle))
                             // Check if all titles have been retrieved
                             if (tripTitleList.size == tripIdList.size) {
-                                callback(tripTitleList)
+                                _currentUserTrips.value = tripTitleList
                             }
                         }
                     }
@@ -959,6 +1073,27 @@ class FirebaseViewModel: ViewModel() {
             }
             .addOnFailureListener { exception ->
                 Log.w(TAG, "Error getting documents: getTripTitleByTripId", exception)
+            }
+    }
+    fun removeDestinationFromTrip(db: FirebaseFirestore,
+                                  tripId: String,
+                                  destinationId: String,
+                                  context: Context
+    ){
+        val docRef = db.collection("trips").document(tripId)
+
+        db.runTransaction { transaction ->
+            val currentList = transaction.get(docRef).get("destinationIdList")
+                    as? MutableList<String> ?: mutableListOf()
+            currentList.remove(destinationId)
+            transaction.update(docRef, "destinationIdList", currentList)
+        }
+            .addOnSuccessListener {
+                Log.d(TAG, "Transaction success: deleteDestinationFromTrip")
+                showMessage(context,"Destination Removed")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Transaction failure: deleteDestinationFromTrip: $e")
             }
     }
 
