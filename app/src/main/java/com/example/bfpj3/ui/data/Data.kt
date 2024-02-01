@@ -23,8 +23,9 @@ data class Price(
 )
 
 data class Review(
+    var reviewId: String,
     var userId: String,
-    var destination: String,
+    var destinationId: String,
     var rating: Int,
     var title: String,
     var description: String,

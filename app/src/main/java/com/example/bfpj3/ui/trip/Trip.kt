@@ -9,6 +9,8 @@ import java.time.temporal.ChronoUnit
 
 @RequiresApi(Build.VERSION_CODES.O)
 class Trip(
+    var tripId: String,
+    var userId: String,
     var destinations: MutableList<Destination>,
     var numOfPeople: Int,
     var startDate: LocalDate, // Add startDate

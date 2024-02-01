@@ -31,6 +31,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateListOf
@@ -45,16 +47,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.bfpj3.database.FirebaseViewModel
 import com.example.bfpj3.ui.data.Destination
 import com.example.bfpj3.ui.home.DestinationCard
+import com.google.firebase.firestore.FirebaseFirestore
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun TripScreen(navController: NavController) {
+fun TripScreen(navController: NavController, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     val tripViewModel: TripViewModel = viewModel(LocalContext.current as ComponentActivity)
 
-    val trips by tripViewModel.trips.observeAsState(emptyList())
+    val trips by firebaseViewModel.trips.collectAsState()
     val selectedTrip by tripViewModel.selectedTrip.observeAsState()
+
+    LaunchedEffect(firebaseViewModel.trips.collectAsState()) {
+        firebaseViewModel.getAllTrip(db)
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -70,7 +78,7 @@ fun TripScreen(navController: NavController) {
 
         // Display list of trips
         items(trips) { trip ->
-            TripCard(trip, selectedTrip, tripViewModel)
+            TripCard(trip, selectedTrip, tripViewModel,db,firebaseViewModel)
         }
     }
 }
@@ -114,8 +122,9 @@ fun NewTripCard(onAddTripClick: () -> Unit) {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel) {
+fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     var checked by remember { mutableStateOf(trip.isPublic) }
+    val context = LocalContext.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -150,6 +159,7 @@ fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel) {
                         onCheckedChange = {
                             // Update the public/private setting
                             checked = it
+                            firebaseViewModel.updateIsPublicForTrip(db,trip.tripId,checked,context)
                         }
                     )
 
