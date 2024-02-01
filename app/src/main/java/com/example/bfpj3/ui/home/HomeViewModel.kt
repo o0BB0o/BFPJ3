@@ -23,7 +23,8 @@ class HomeViewModel : ViewModel() {
         Nature("Nature"),
         Historic("Historic"),
         Culture("Culture"),
-        Music("Music")
+        Music("Music"),
+        Tech("Tech")
     }
 
     fun sortDestinations(sortOption: SortingOption) { //TODO
@@ -59,9 +60,6 @@ class HomeViewModel : ViewModel() {
         return String.format("%.2f", averageRating)
     }
 
-    fun hasUserReviewed(destination: Destination): Boolean { // TODO
-        return false
-    }
     fun toggleSortOrder(currentSortOption: SortingOption? = null) {
         isReversed.value = !(isReversed.value ?: false)
         applyCurrentFiltersAndSort()

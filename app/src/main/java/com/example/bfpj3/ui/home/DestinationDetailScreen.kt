@@ -101,11 +101,9 @@ fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
         ReviewsSection(destination!!, viewModel, db, firebaseViewModel)
 
         Spacer(modifier = Modifier.size(16.dp))
-        if (!viewModel.hasUserReviewed(destination!!)) {
-            WriteReviewSection(onSubmit = { rating, description, title ->
-                firebaseViewModel.storeReviewInfoOnReview(db,destination!!.destinationId,rating,title,description, context)
-            })
-        }
+        WriteReviewSection(onSubmit = { rating, description, title ->
+            firebaseViewModel.storeReviewInfoOnReview(db,destination!!.destinationId,rating,title,description, context)
+        })
     }
     if (showAddToTripDialog) {
         AddToTripDialog(
