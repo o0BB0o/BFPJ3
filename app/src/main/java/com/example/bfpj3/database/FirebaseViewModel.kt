@@ -7,6 +7,7 @@ import android.util.Log
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import com.example.bfpj3.ui.data.Destination
@@ -17,6 +18,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -30,6 +34,24 @@ class FirebaseViewModel: ViewModel() {
     val userCurrency: StateFlow<String> = _userCurrency
     private var _destinations = MutableStateFlow<MutableList<Destination>>(mutableListOf())
     val destinations: StateFlow<List<Destination>> = _destinations
+
+    //SearchBar
+    private val _searchText = MutableStateFlow("")
+    val searchText = _searchText.asStateFlow()
+    fun onSearchTextChange(text: String) {
+        _searchText.value = text
+    }
+    val searchResultDestinations = searchText
+        .combine(_destinations) { text, destinations ->
+            if (text.isBlank()) {
+                listOf()
+            }
+            else {
+                destinations.filter {
+                    it.doesMatchSearchQuery(text)
+                }
+            }
+        }
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun register(auth: FirebaseAuth,
