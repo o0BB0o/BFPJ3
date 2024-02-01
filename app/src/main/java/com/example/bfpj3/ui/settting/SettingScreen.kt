@@ -2,7 +2,6 @@ package com.example.bfpj3.ui.settting
 
 
 import android.os.Build
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row

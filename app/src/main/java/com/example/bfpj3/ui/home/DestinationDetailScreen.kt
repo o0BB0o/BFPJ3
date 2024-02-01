@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material.Chip
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.OutlinedTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.TextField
@@ -145,10 +146,9 @@ fun WriteReviewSection(onSubmit: (Int, String, String) -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewTitleEdit(title: String, onTitleChange: (String) -> Unit) {
-    TextField(
+    OutlinedTextField(
         value = title,
         onValueChange = { newText ->
             val filteredText = newText.replace("\n", "")
@@ -165,7 +165,7 @@ fun ReviewContentEdit(content: String, onContentChange: (String) -> Unit) {
     val wordCount = content.trim().split("\\s+".toRegex()).count { it.isNotEmpty() }
     val isOverLimit = wordCount > 100
 
-    TextField(
+    OutlinedTextField(
         value = content,
         onValueChange = { newText ->
             val newWordCount = newText.trim().split("\\s+".toRegex()).count { it.isNotEmpty() }
