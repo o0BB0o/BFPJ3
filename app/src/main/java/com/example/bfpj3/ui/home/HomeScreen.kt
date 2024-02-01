@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -78,9 +79,7 @@ fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewMode
     }
 
     Column(modifier = Modifier.padding(bottom = 60.dp)) {
-        SearchBar(onSearch = {searchInput ->
-            // TODO searchInput
-        })
+        SearchBar(firebaseViewModel, navController)
         Row(modifier = Modifier
             .padding(start = 8.dp)
             .padding(end = 8.dp)) {
@@ -203,25 +202,48 @@ fun AddToTripDialog(onDismiss: () -> Unit, onSelectTrip: (String) -> Unit) {
 
 
 @Composable
-fun SearchBar(onSearch: (String) -> Unit) {
-    var text by remember { mutableStateOf("") }
+fun SearchBar(firebaseViewModel: FirebaseViewModel, navController: NavController) {
+    val text by firebaseViewModel.searchText.collectAsState()
+    val searchResult by firebaseViewModel.searchResultDestinations.collectAsState(listOf())
+    val isDropdownVisible = text.isNotBlank() && searchResult.isNotEmpty()
+    val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
     val focusManager = LocalFocusManager.current
-    TextField(
-        value = text,
-        onValueChange = { text = it },
-        label = { Text("Search") },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
-        modifier = Modifier.fillMaxWidth(),
-        keyboardOptions = KeyboardOptions(
-            imeAction = ImeAction.Search
-        ),
-        keyboardActions = KeyboardActions(
-            onSearch = {
-                onSearch(text)
-                focusManager.clearFocus()
+    Column {
+        TextField(
+            value = text,
+            onValueChange = firebaseViewModel::onSearchTextChange,
+            label = { Text("Search")
+                firebaseViewModel.onSearchTextChange(text)},
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Search
+            ))
+        if(isDropdownVisible) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                items(searchResult) { destination ->
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            viewModel.selectedDestination.value = destination
+                            navController.navigate("destination_detail")
+                        }
+                    ) {
+                        Text(
+                            text = destination.name,
+                            style = MaterialTheme.typography.headlineSmall,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Start
+                        )
+                    }
+                }
             }
-        )
-    )
+        }
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)

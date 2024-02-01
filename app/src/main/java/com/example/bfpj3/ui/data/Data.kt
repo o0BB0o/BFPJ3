@@ -15,7 +15,19 @@ val ageRecommendation: String,
 val thingsTodo: List<String>,
 val tags: List<String>,
 val imageUrl: String
-)
+) {
+    fun doesMatchSearchQuery(query:String):Boolean {
+        val matchingCombinations = listOf(
+            name,
+            name.split(" ")[0],
+            location,
+            location.split(",")[0]
+        )
+        return matchingCombinations.any {
+            it.contains(query, ignoreCase = true)
+        }
+    }
+}
 
 data class Price(
     val value: Double,

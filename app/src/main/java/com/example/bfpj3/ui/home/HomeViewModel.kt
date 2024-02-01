@@ -1,15 +1,8 @@
 package com.example.bfpj3.ui.home
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.bfpj3.ui.data.Destination
-import com.example.bfpj3.ui.data.Price
-import com.example.bfpj3.ui.data.Review
-import com.google.firebase.Timestamp
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 
 class HomeViewModel : ViewModel() {
@@ -20,7 +13,6 @@ class HomeViewModel : ViewModel() {
     var currentSortOption = MutableLiveData<SortingOption>(SortingOption.Name)
     private var currentFilterOption: FilteringOption = FilteringOption.None
     enum class SortingOption(val displayName: String) {
-
         Name("Name"),
         Price("Price"),
         Ratings("Ratings");
@@ -58,13 +50,13 @@ class HomeViewModel : ViewModel() {
         destinations.value = if (isReversed.value == true) sortedList.reversed() else sortedList
     }
 
-    fun getavgRating(d:Destination): Double {
+    fun getavgRating(d:Destination): String {
         if (d.reviewList.isEmpty()) {
-            return 0.0
+            return "N/A"
         }
         val totalRating = d.reviewList.sumOf { it.rating }
         val averageRating = totalRating.toDouble() / d.reviewList.size
-        return String.format("%.2f", averageRating).toDouble()
+        return String.format("%.2f", averageRating)
     }
 
     fun hasUserReviewed(destination: Destination): Boolean { // TODO

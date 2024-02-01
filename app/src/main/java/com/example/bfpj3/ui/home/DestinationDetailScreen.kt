@@ -6,6 +6,8 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -51,20 +53,21 @@ import com.example.bfpj3.ui.data.Review
 import com.google.firebase.firestore.FirebaseFirestore
 
 @RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterialApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
     val destination by viewModel.selectedDestination.observeAsState()
     val context = LocalContext.current
-
-
+    var showAddToTripDialog by remember { mutableStateOf(false) }
     Column(modifier = Modifier
         .padding(16.dp)
         .verticalScroll(rememberScrollState())) {
         Text(destination!!.name, style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(top = 32.dp))
         Text(destination!!.location)
+        Text(destination!!.ownerOrganization)
+        Text("Recommended Age: ${destination!!.ageRecommendation}")
         AsyncImage(
             model = destination!!.imageUrl,
             modifier = Modifier
@@ -74,19 +77,26 @@ fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
             error = painterResource(id = R.drawable.ic_launcher_foreground),
             contentDescription = "Destination Image")
         val avgRating = viewModel.getavgRating(destination!!)
-        Text("Average Rating: $avgRating",
-            style = MaterialTheme.typography.headlineSmall)
-
         Spacer(modifier = Modifier.size(16.dp))
         Text("Things to Do", style = MaterialTheme.typography.headlineSmall)
-        Row(){
+        FlowRow(){
             destination!!.thingsTodo.forEach { tag ->
                 Chip(onClick = {}) {
                     androidx.compose.material.Text(tag)
                 }
             }
         }
-
+        Spacer(modifier = Modifier.size(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "Interested?", style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.size(16.dp))
+            Button(onClick = {showAddToTripDialog = true}, modifier = Modifier.fillMaxWidth()){
+                Text(text = "Add to Trip Now!")
+            }
+        }
+        Spacer(modifier = Modifier.size(16.dp))
+        Text("Average Rating: $avgRating",
+            style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.size(16.dp))
         ReviewsSection(destination!!, viewModel, db, firebaseViewModel)
 
@@ -97,11 +107,24 @@ fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
             })
         }
     }
+    if (showAddToTripDialog) {
+        AddToTripDialog(
+            onDismiss = { showAddToTripDialog = false },
+            onSelectTrip = { selectedTrip ->
+                //TODO add to destination to trip
+                //viewModel.addToTrip(destination, selectedTrip)
+                showAddToTripDialog = false
+            }
+        )
+    }
 }
 
 
 @Composable
 fun ReviewsSection(destination: Destination, viewModel:HomeViewModel, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
+    if(destination.reviewList.isEmpty()) {
+        Text(text = "No Review Right Now. Check back later! ")
+    }
     destination.reviewList.forEach { review ->
         ReviewItem(review,db,firebaseViewModel)
     }
@@ -173,7 +196,9 @@ fun ReviewContentEdit(content: String, onContentChange: (String) -> Unit) {
                 onContentChange(newText)
             }
         },
-        modifier = Modifier.fillMaxWidth().height(120.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp),
         label = { Text("Write your review here!") },
         trailingIcon = {
             Text(
