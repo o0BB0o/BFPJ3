@@ -68,6 +68,7 @@ fun TripScreen(navController: NavController, db: FirebaseFirestore, firebaseView
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .padding(bottom = 60.dp)
     ) {
         // Placeholder card for adding new trips
         item {
