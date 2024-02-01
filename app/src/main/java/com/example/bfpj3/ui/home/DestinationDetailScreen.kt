@@ -155,7 +155,7 @@ fun ReviewItem(review: Review,db: FirebaseFirestore, firebaseViewModel: Firebase
 
 @Composable
 fun WriteReviewSection(onSubmit: (Int, String, String) -> Unit) {
-    var rating by remember { mutableStateOf(0) } //TODO move to VM
+    var rating by remember { mutableStateOf(0) }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 

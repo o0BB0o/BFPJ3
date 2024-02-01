@@ -80,7 +80,6 @@ fun ProfileImageSection(storage: FirebaseStorage, db: FirebaseFirestore, firebas
 
     Box {
         if (profileImageUri.isNotBlank()) {
-            // TODO: Load the image from the URI
             AsyncImage(
                 model = profileImageUri,
                 modifier = imageModifier,

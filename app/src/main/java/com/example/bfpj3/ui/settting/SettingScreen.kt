@@ -121,7 +121,6 @@ fun SettingScreen(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel, n
 
 @Composable
 fun CurrencyDropdownMenu(userCurrency: String, onCurrencyChange: (String) -> Unit) {
-    // TODO
     var expanded by remember { mutableStateOf(false) }
     val currencies = listOf("USD", "EUR", "CNY")
 
