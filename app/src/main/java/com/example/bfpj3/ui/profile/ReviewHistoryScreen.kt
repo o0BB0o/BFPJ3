@@ -29,6 +29,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -36,19 +38,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.bfpj3.database.FirebaseViewModel
 import com.example.bfpj3.ui.data.Review
 import com.example.bfpj3.ui.profile.ReviewHistoryViewModel
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 
 @RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReviewHistoryScreen(navController: NavController) {
+fun ReviewHistoryScreen(navController: NavController, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     val viewModel: ReviewHistoryViewModel = viewModel()
-    val reviewList by viewModel.reviews.observeAsState(listOf())
+    val reviewList by firebaseViewModel.currentUserReviews.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(firebaseViewModel.currentUserReviews.collectAsState()) {
+        firebaseViewModel.getCurrentUserReviewListFromUser(db, context){}
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -66,18 +78,18 @@ fun ReviewHistoryScreen(navController: NavController) {
             )
         }
     ) {
-        ReviewsSection(reviewList)
+        ReviewsSection(reviewList, db, firebaseViewModel)
     }
 }
 
 @Composable
-fun ReviewsSection(reviewList: List<Review>) {
+fun ReviewsSection(reviewList: List<Review>,db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     var showEditDialog by remember { mutableStateOf(false) }
     var reviewToEdit by remember { mutableStateOf<Review?>(null) }
 
     LazyColumn {
         items(reviewList) { review ->
-            ReviewItem(review) {
+            ReviewItem(review, db, firebaseViewModel) {
                 reviewToEdit = review
                 showEditDialog = true
             }
@@ -85,7 +97,7 @@ fun ReviewsSection(reviewList: List<Review>) {
     }
 
     if (showEditDialog && reviewToEdit != null) {
-        EditReviewDialog(review = reviewToEdit!!, onDismiss = {
+        EditReviewDialog(review = reviewToEdit!!, db, firebaseViewModel,onDismiss = {
             showEditDialog = false
             reviewToEdit = null
         })
@@ -93,7 +105,12 @@ fun ReviewsSection(reviewList: List<Review>) {
 }
 
 @Composable
-fun ReviewItem(review: Review, onEditClick: () -> Unit) {
+fun ReviewItem(review: Review, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel, onEditClick: () -> Unit) {
+    var destinationName by remember { mutableStateOf("") }
+
+    firebaseViewModel.getDestinationNameByDestinationId(db,review.destinationId){name->
+        destinationName = name
+    }
     Card(
         modifier = Modifier
             .padding(8.dp)
@@ -109,7 +126,7 @@ fun ReviewItem(review: Review, onEditClick: () -> Unit) {
                     .weight(1f)
                     .padding(16.dp)
             ) {
-                Text(review.destination, style = MaterialTheme.typography.headlineMedium)
+                Text(destinationName, style = MaterialTheme.typography.headlineMedium)
                 Text(review.title, style = MaterialTheme.typography.headlineSmall)
                 ReviewRatingBar(review.rating)
                 Text(review.description)
@@ -126,9 +143,10 @@ fun ReviewItem(review: Review, onEditClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditReviewDialog(review: Review, onDismiss: () -> Unit) {
+fun EditReviewDialog(review: Review, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel, onDismiss: () -> Unit) {
     var editedDescription by remember { mutableStateOf(review.description) }
     var editedRating by remember { mutableStateOf(review.rating) }
+    val context = LocalContext.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -146,6 +164,7 @@ fun EditReviewDialog(review: Review, onDismiss: () -> Unit) {
         confirmButton = {
             Button(onClick = {
                 // TODO: update the review
+                firebaseViewModel.updateReviewOnReview(db, review.reviewId, editedDescription,editedRating,context)
                 onDismiss()
             }) {
                 Text("Save")

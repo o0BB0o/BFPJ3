@@ -13,26 +13,26 @@ import java.time.format.DateTimeFormatter
 class ReviewHistoryViewModel : ViewModel() {
     val reviews = MutableLiveData<List<Review>>()
 
-    init{
-        val currentTimestamp = Timestamp.now()
-        val review1 = Review(
-            userId = "1",
-            destination = "A Eiffel Tower",
-            rating = 5,
-            title = "Amazing Experience",
-            description = "The view from the top is breathtaking!",
-            timestamp = getCurrentDate()
-        )
-        val review2 = Review(
-            userId = "1",
-            destination = "B Eiffel Tower",
-            rating = 4,
-            title = "Great but crowded",
-            description = "A must-visit place, though it gets quite crowded.",
-            timestamp = getCurrentDate()
-        )
-        reviews.value = listOf(review1, review2)
-    }
+//    init{
+//        val currentTimestamp = Timestamp.now()
+//        val review1 = Review(
+//            userId = "1",
+//            destinationId = "A Eiffel Tower",
+//            rating = 5,
+//            title = "Amazing Experience",
+//            description = "The view from the top is breathtaking!",
+//            timestamp = getCurrentDate()
+//        )
+//        val review2 = Review(
+//            userId = "1",
+//            destinationId = "B Eiffel Tower",
+//            rating = 4,
+//            title = "Great but crowded",
+//            description = "A must-visit place, though it gets quite crowded.",
+//            timestamp = getCurrentDate()
+//        )
+//        reviews.value = listOf(review1, review2)
+//    }
     @RequiresApi(Build.VERSION_CODES.O)
     fun getCurrentDate(): String {
         // Get the current date
