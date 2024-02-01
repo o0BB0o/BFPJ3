@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -132,7 +133,7 @@ fun ReviewsSection(destination: Destination, viewModel:HomeViewModel, db: Fireba
 fun ReviewItem(review: Review,db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     Row(modifier = Modifier.padding(top = 8.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.size(100.dp)) {
-            var reviewDisplayName by remember { mutableStateOf("") }
+            var reviewDisplayName by remember { mutableStateOf("Deleted User") }
             var profileImageUri by remember { mutableStateOf("") }
             firebaseViewModel.getUserDisplayNameByUserId(db,review.userId){ name ->
                 reviewDisplayName = name
@@ -162,7 +163,7 @@ fun WriteReviewSection(onSubmit: (Int, String, String) -> Unit) {
     ReviewTitleEdit(title) { title = it }
     ReviewContentEdit(description) { description = it }
     RatingBar(rating) { rating = it }
-    Button(onClick = { onSubmit(rating, description, title) }) {
+    Button(onClick = { onSubmit(rating, description, title) }, modifier = Modifier.fillMaxWidth()) {
         Text("Submit Review")
     }
 }
@@ -210,7 +211,7 @@ fun ReviewContentEdit(content: String, onContentChange: (String) -> Unit) {
 
 @Composable
 fun RatingBar(currentRating: Int, onRatingChange: (Int) -> Unit) {
-    Row {
+    Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
         (1..5).forEach { index ->
             IconToggleButton(
                 checked = currentRating >= index,
