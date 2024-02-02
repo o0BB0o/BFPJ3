@@ -99,7 +99,7 @@ fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewMode
                 .padding(bottom = 8.dp)
         ) {
             items(destinations) { destination ->
-                DestinationCard(destination, currentCurrency,
+                DestinationCard(destination, currentCurrency, firebaseViewModel,db,
                     onClick = {
                         viewModel.selectedDestination.value = destination
                         navController.navigate("destination_detail")})
@@ -111,7 +111,7 @@ fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewMode
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun DestinationCard(destination: Destination, currentCurrency: String, onClick: () -> Unit) {
+fun DestinationCard(destination: Destination, currentCurrency: String, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore,onClick: () -> Unit) {
     var showAddToTripDialog by remember { mutableStateOf(false) }
     val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
     Card(modifier = Modifier
@@ -151,8 +151,11 @@ fun DestinationCard(destination: Destination, currentCurrency: String, onClick: 
     }
     if (showAddToTripDialog) {
         AddToTripDialog(
+            firebaseViewModel,
+            db,
+            destination.destinationId,
             onDismiss = { showAddToTripDialog = false },
-            onSelectTrip = { selectedTrip ->
+            onSelectTripId = { selectedTrip ->
                 //TODO add to destination to trip
                 //viewModel.addToTrip(destination, selectedTrip)
                 showAddToTripDialog = false
@@ -162,35 +165,44 @@ fun DestinationCard(destination: Destination, currentCurrency: String, onClick: 
 }
 
 @Composable
-fun AddToTripDialog(onDismiss: () -> Unit, onSelectTrip: (String) -> Unit) {
+fun AddToTripDialog(firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore, destinationId: String, onDismiss: () -> Unit, onSelectTripId: (String) -> Unit) {
     // TODO change trip to trip from VM (Also slightly change the logic below)
-    var selectedTrip by remember { mutableStateOf<String?>(null) }
-    val trips = listOf("Trip 1", "Trip 2", "Trip 3")
+    var selectedTripId by remember { mutableStateOf<String?>(null) }
+    val trips = firebaseViewModel.currentUserTrips.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(firebaseViewModel.currentUserTrips.collectAsState()) {
+        firebaseViewModel.getCurrentUserTrips(db)
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add to Trip") },
         text = {
             Column {
-                trips.forEach { trip ->
+                trips.value.forEach { (tripId, tripTitle) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedTrip = trip },
+                            .clickable { selectedTripId = tripId },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
-                            onClick = { selectedTrip = trip },
-                            selected = trip == selectedTrip
+                            onClick = { selectedTripId = tripId},
+                            selected = selectedTripId == tripId
                         )
-                        Text(trip)
+                        Text(tripTitle)
                     }
                 }
             }
         },
         confirmButton = {
             Button(
-                onClick = { selectedTrip?.let { onSelectTrip(it) } },
-                enabled = selectedTrip != null
+                onClick = {
+                    selectedTripId?.let { onSelectTripId(it) }
+                    firebaseViewModel.addDestinationIdOnTrip(db, selectedTripId!!,destinationId, context)
+                },
+                enabled = selectedTripId != null
             ) {
                 Text("Confirm")
             }
