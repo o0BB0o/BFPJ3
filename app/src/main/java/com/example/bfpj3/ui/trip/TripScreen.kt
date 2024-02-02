@@ -3,6 +3,7 @@ package com.example.bfpj3.ui.trip
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +21,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.Card
+import androidx.compose.material.Chip
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -45,8 +48,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import com.example.bfpj3.ui.data.Destination
 import com.example.bfpj3.ui.home.DestinationCard
+import com.example.bfpj3.ui.home.HomeViewModel
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -247,4 +252,35 @@ fun ConfirmationDialog(
             }
         }
     )
+}
+
+@Composable
+@OptIn(ExperimentalMaterialApi::class)
+fun SimpleDestinationCard(destination: Destination, onClick: () -> Unit) {
+    val viewModel: HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
+    Card(modifier = Modifier
+        .padding(8.dp)
+        .fillMaxWidth()
+        .clickable(onClick = onClick), elevation = 4.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = rememberAsyncImagePainter(model = destination.imageUrl),
+                contentDescription = "Destination Image",
+                modifier = Modifier.size(100.dp)
+            )
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(text = destination.name, style = MaterialTheme.typography.headlineMedium)
+                Text(text = "Rating: ${viewModel.getavgRating(destination)}")
+                Text(text = "Location: ${destination.location}")
+                Text(text = "Price: ${destination.price}")
+                Row(){
+                    destination.tags.forEach { tag ->
+                        Chip(onClick = {}) {
+                            Text(tag)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
