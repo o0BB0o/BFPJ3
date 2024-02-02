@@ -2,7 +2,6 @@ package com.example.bfpj3.ui.settting
 
 
 import android.os.Build
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -122,7 +121,6 @@ fun SettingScreen(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel, n
 
 @Composable
 fun CurrencyDropdownMenu(userCurrency: String, onCurrencyChange: (String) -> Unit) {
-    // TODO
     var expanded by remember { mutableStateOf(false) }
     val currencies = listOf("USD", "EUR", "CNY")
 

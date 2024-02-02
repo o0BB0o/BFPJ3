@@ -28,9 +28,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.text.isDigitsOnly
+import com.example.bfpj3.database.FirebaseViewModel
+import com.google.firebase.firestore.FirebaseFirestore
 import java.text.DateFormat.getDateInstance
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -44,7 +47,7 @@ import java.util.TimeZone
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun AddNewTripScreen() {
+fun AddNewTripScreen(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     var tripName by remember { mutableStateOf("") }
     var numOfPeople by remember { mutableStateOf("") }
     var isPublic by remember { mutableStateOf(true) }
@@ -53,6 +56,7 @@ fun AddNewTripScreen() {
     var selectedDatePicker by remember { mutableStateOf("start") }
     var startDate by remember { mutableStateOf(getTodayDate()) }
     var endDate by remember { mutableStateOf(getTodayDate()) }
+    var context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -162,15 +166,18 @@ fun AddNewTripScreen() {
         Button(
             onClick = {
 //                 Create the trip and pass it to the callback
-                val newTrip = Trip(
-                    destinations = mutableListOf(),
-                    numOfPeople = numOfPeople.toInt(),
-                    startDate = LocalDate.parse(startDate, DateTimeFormatter.ofPattern("MMM dd, yyyy")),
-                    endDate = LocalDate.parse(endDate, DateTimeFormatter.ofPattern("MMM dd, yyyy")),
-                    title = tripName,
-                    description = "",
-                    isPublic = isPublic
-                )
+                    val newTrip = Trip(
+                        userId = "",
+                        tripId = "",
+                        destinations = mutableListOf(),
+                        numOfPeople = numOfPeople.toInt(),
+                        startDate = LocalDate.parse(startDate, DateTimeFormatter.ofPattern("MMM dd, yyyy")),
+                        endDate = LocalDate.parse(endDate, DateTimeFormatter.ofPattern("MMM dd, yyyy")),
+                        title = tripName,
+                        description = "",
+                        isPublic = isPublic
+                    )
+                    firebaseViewModel.storeTripInfoOnTrip(db, newTrip, context)
 //                onAddTrip(newTrip)
 //                onDismiss()
             },

@@ -34,6 +34,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateListOf
@@ -52,19 +54,26 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.bfpj3.ui.data.Destination
 import com.example.bfpj3.ui.home.DestinationCard
 import com.example.bfpj3.ui.home.HomeViewModel
+import com.example.bfpj3.database.FirebaseViewModel
+import com.google.firebase.firestore.FirebaseFirestore
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun TripScreen(navController: NavController) {
+fun TripScreen(navController: NavController, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     val tripViewModel: TripViewModel = viewModel(LocalContext.current as ComponentActivity)
 
-    val trips by tripViewModel.trips.observeAsState(emptyList())
+    val trips by firebaseViewModel.allTrips.collectAsState()
     val selectedTrip by tripViewModel.selectedTrip.observeAsState()
 
+    LaunchedEffect(firebaseViewModel.allTrips.collectAsState()) {
+        firebaseViewModel.getAllTrip(db)
+    }
+    Text(text = "trips size: ${trips.size}")
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .padding(bottom = 60.dp)
     ) {
         // Placeholder card for adding new trips
         item {
@@ -72,10 +81,9 @@ fun TripScreen(navController: NavController) {
                 navController.navigate("addNewTripScreen")
             }
         }
-
         // Display list of trips
         items(trips) { trip ->
-            TripCard(trip, selectedTrip, tripViewModel)
+            TripCard(trip, selectedTrip, tripViewModel,db,firebaseViewModel)
         }
     }
 }
@@ -119,8 +127,9 @@ fun NewTripCard(onAddTripClick: () -> Unit) {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel) {
+fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     var checked by remember { mutableStateOf(trip.isPublic) }
+    val context = LocalContext.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -155,6 +164,7 @@ fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel) {
                         onCheckedChange = {
                             // Update the public/private setting
                             checked = it
+                            firebaseViewModel.updateIsPublicForTrip(db,trip.tripId,checked,context)
                         }
                     )
 
@@ -172,24 +182,25 @@ fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel) {
             Spacer(modifier = Modifier.height(8.dp))
             // Display list of destinations for the selected trip
             if (selectedTrip == trip) {
-                DestinationList(trip)
+                DestinationList(trip,firebaseViewModel, db)
             }
         }
     }
 }
 
 @Composable
-fun DestinationList(trip: Trip) {
+fun DestinationList(trip: Trip, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore) {
     val destinations = mutableStateListOf(*trip.destinations.toTypedArray())
 
     // State to track if the confirmation dialog should be shown
     val showConfirmationDialog = remember { mutableStateOf(false) }
     var selectedDestination by remember { mutableStateOf<Destination?>(null) }
+    val context = LocalContext.current
 
     for (destination in destinations) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
-                DestinationCard(destination, onClick = {})
+                DestinationCard(destination, "USD" , firebaseViewModel,db,onClick = {})
             }
 
             IconButton(
@@ -215,6 +226,7 @@ fun DestinationList(trip: Trip) {
                 // Remove the destination from the list, update the ViewModel, etc.
                 destinations.remove(selectedDestination)
                 trip.destinations = destinations
+                firebaseViewModel.removeDestinationFromTrip(db, trip.tripId, selectedDestination!!.destinationId,context)
             },
             onCancel = {
                 // Close the confirmation dialog

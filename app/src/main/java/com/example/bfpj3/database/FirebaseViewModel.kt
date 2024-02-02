@@ -7,29 +7,71 @@ import android.util.Log
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import com.example.bfpj3.ui.data.Destination
 import com.example.bfpj3.ui.data.Review
 import com.example.bfpj3.ui.navigation.BottomNavItem
+import com.example.bfpj3.ui.trip.Trip
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 class FirebaseViewModel: ViewModel() {
     private var currentUserId: String = ""
+
     private var _displayName = MutableStateFlow("Current Name")
     val displayName: StateFlow<String> = _displayName
+
     private var _profilePicDownloadUri = MutableStateFlow("")
     val profilePicDownloadUri: StateFlow<String> = _profilePicDownloadUri
+
     private var _userCurrency = MutableStateFlow("")
     val userCurrency: StateFlow<String> = _userCurrency
+
     private var _destinations = MutableStateFlow<MutableList<Destination>>(mutableListOf())
     val destinations: StateFlow<List<Destination>> = _destinations
+
+    //SearchBar
+    private val _searchText = MutableStateFlow("")
+    val searchText = _searchText.asStateFlow()
+    fun onSearchTextChange(text: String) {
+        _searchText.value = text
+    }
+    val searchResultDestinations = searchText
+        .combine(_destinations) { text, destinations ->
+            if (text.isBlank()) {
+                listOf()
+            }
+            else {
+                destinations.filter {
+                    it.doesMatchSearchQuery(text)
+                }
+            }
+        }
+
+
+    private var _allTrips = MutableStateFlow<MutableList<Trip>>(mutableListOf())
+    val allTrips: StateFlow<List<Trip>> = _allTrips
+
+    private var _currentUserTrips = MutableStateFlow<MutableList<Pair<String, String>>>(mutableListOf())
+    val currentUserTrips: StateFlow<List<Pair<String, String>>> = _currentUserTrips
+
+    private var _currentUserReviews = MutableStateFlow<MutableList<Review>>(mutableListOf())
+    val currentUserReviews: StateFlow<List<Review>> = _currentUserReviews
+
+    // Sorting + Filtering
+    var currentSortOption = MutableLiveData<SortingOption>(SortingOption.Name)
+    var currentFilterOption = MutableLiveData<FilteringOption>(FilteringOption.None)
+    lateinit var allDestinations : List<Destination>
+    private var isReversed = MutableLiveData<Boolean>(false)
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun register(auth: FirebaseAuth,
@@ -74,8 +116,8 @@ class FirebaseViewModel: ViewModel() {
             "displayName" to displayName,
             "email" to email,
             "password" to password,
-            "reviewList" to reviewList,
-            "tripList" to tripList,
+            "reviewIdList" to reviewList,
+            "tripIdList" to tripList,
             "saveList" to saveList,
             "currency" to currency,
         )
@@ -254,6 +296,10 @@ class FirebaseViewModel: ViewModel() {
     }
     //Delete Account
     fun deleteAccountAndData(db: FirebaseFirestore, storage: FirebaseStorage, context: Context, navController: NavController){
+        deleteCurrentUserTrips(db){}
+        deleteCurrentUserReviews(db){}
+        deleteCurrentUserProfilePic(storage, context){}
+
         //Delete user's info
         val userId = getCurrentUserId()
         db.collection("users")
@@ -275,8 +321,6 @@ class FirebaseViewModel: ViewModel() {
                 Log.w(TAG, "Error deleting profile info", e)
             }
 
-        deleteCurrentUserProfilePic(storage, context)
-
         //Delete Auth
         val user = FirebaseAuth.getInstance().currentUser
         user?.delete()
@@ -295,7 +339,119 @@ class FirebaseViewModel: ViewModel() {
                 }
             }
     }
-    fun deleteCurrentUserProfilePic(storage: FirebaseStorage, context: Context) {
+    fun deleteCurrentUserTrips(db: FirebaseFirestore, callback: (String) -> Unit){
+        val userId = getCurrentUserId()
+        //Get all the tripIds created by this user
+        db.collection("users")
+            .document("user $userId")
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    val tripIdList = document.get("tripIdList") as? MutableList<String> ?: mutableListOf()
+                    var successCount = 0
+                    for(tripId in tripIdList){
+                        db.collection("trips")
+                            .document(tripId)
+                            .delete()
+                            .addOnSuccessListener {
+                                successCount++
+                            }
+                            .addOnFailureListener { e ->
+                                Log.w(TAG, "Error deleteCurrentUserTrips tripId: $tripId", e)
+                            }
+                        if(successCount==tripIdList.size){
+                            callback("proceed")
+                        }
+                    }
+
+                    Log.d(TAG, "Success: deleteCurrentUserTrips")
+                } else {
+                    Log.d(TAG, "No such document: deleteCurrentUserTrips")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: deleteCurrentUserTrips", exception)
+            }
+    }
+    fun deleteCurrentUserReviews(db: FirebaseFirestore, callback: (String) -> Unit){
+        val userId = getCurrentUserId()
+        //Get all the reviewIds created by this user
+        db.collection("users")
+            .document("user $userId")
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    val reviewIdList = document.get("reviewIdList") as? MutableList<String> ?: mutableListOf()
+                    var successCount = 0
+                    for(reviewId in reviewIdList){
+                        getDestinationIdByReviewIdFromReview(db, reviewId){ destinationId ->
+                            //delete reviewIds on destination
+                            deleteReviewIdOnDestination(db,destinationId, reviewId)
+                            //delete review info
+                            db.collection("reviews")
+                                .document(reviewId)
+                                .delete()
+                                .addOnSuccessListener {
+                                    successCount++
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.w(TAG, "Error deleteCurrentUserReviews Id: $reviewId", e)
+                                }
+                        }
+                        if(successCount==reviewIdList.size){
+                            callback("proceed")
+                        }
+                    }
+                } else {
+                    Log.d(TAG, "No such document: deleteCurrentUserReviews")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: deleteCurrentUserReviews", exception)
+            }
+    }
+    fun getDestinationIdByReviewIdFromReview(db: FirebaseFirestore, reviewId: String, callback: (String) -> Unit){
+        db.collection("reviews")
+            .document(reviewId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    callback(document.data?.get("destinationId").toString())
+                    Log.d(TAG, "success: getDestinationIdByReviewId")
+                } else {
+                    Log.d(TAG, "No such document: getDestinationIdByReviewId")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: getDestinationIdByReviewId", exception)
+            }
+    }
+    fun deleteReviewIdOnDestination(db: FirebaseFirestore, destinationId: String, reviewId: String){
+        val docRef = db.collection("destinations").document(destinationId)
+
+        db.runTransaction { transaction ->
+            val currentList = transaction.get(docRef).get("reviewIdList")
+                    as? MutableList<String> ?: mutableListOf()
+
+            // Find the index of the reviewId in the list
+            val index = currentList.indexOf(reviewId)
+            if (index != -1) {
+                // Remove the reviewId from the list if it exists
+                currentList.removeAt(index)
+                transaction.update(docRef, "reviewIdList", currentList)
+                Log.d(TAG, "ReviewId $reviewId removed for deleting account")
+            } else {
+                Log.d(TAG, "ReviewId $reviewId not found in the list")
+            }
+        }
+            .addOnSuccessListener {
+                Log.d(TAG, "Transaction success: deleteReviewOnDestination $reviewId")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Transaction failure: deleteReviewOnDestination $reviewId\": $e")
+            }
+    }
+    fun deleteCurrentUserProfilePic(storage: FirebaseStorage, context: Context, callback: (String) -> Unit) {
         val userId = getCurrentUserId()
         val storageRef = storage.reference.child("profile_images")
 
@@ -389,8 +545,6 @@ class FirebaseViewModel: ViewModel() {
                 Log.w(TAG, "Error storeFeedbackInfo", e)
             }
     }
-    //destinations----document: 1
-    //
 
     fun getAllDestinations(db: FirebaseFirestore) {
         db.collection("destinations")
@@ -412,65 +566,39 @@ class FirebaseViewModel: ViewModel() {
                     val thingsTodoList = document.get("thingsTodoList") as? List<String> ?: emptyList()
                     val tagList = document.get("tagList") as? List<String> ?: emptyList()
                     val imageUrl = document.getString("imageUrl") ?: ""
-
                     val reviewList = mutableListOf<Review>()
-                    //if a destination has no review
-                    if(reviewIdList.isEmpty()){
-                        val destination = Destination(
-                            destinationId,
-                            name,
-                            ownerOrganization,
-                            location,
-                            description,
-                            reviewList,
-                            price,
-                            localLanguageList,
-                            ageRecommendation,
-                            thingsTodoList,
-                            tagList,
-                            imageUrl
-                        )
-                        newDestinations.add(destination)
-                    }
-
                     for (reviewId in reviewIdList) {
                         getReviewInfoFromReview(db, reviewId) { review ->
-                            reviewList.add(review)
-                            Log.d(TAG, "current reviewlist size: ${reviewList.size}")
-                            // Check if all reviews for this destination have been retrieved
-                            if (reviewList.size == reviewIdList.size) {
-                                val destination = Destination(
-                                    destinationId,
-                                    name,
-                                    ownerOrganization,
-                                    location,
-                                    description,
-                                    reviewList,
-                                    price,
-                                    localLanguageList,
-                                    ageRecommendation,
-                                    thingsTodoList,
-                                    tagList,
-                                    imageUrl
-                                )
-                                newDestinations.add(destination)
-                            }
-                        }
+                            reviewList.add(review) }
                     }
+                    val destination = Destination(
+                        destinationId,
+                        name,
+                        ownerOrganization,
+                        location,
+                        description,
+                        reviewList,
+                        price,
+                        localLanguageList,
+                        ageRecommendation,
+                        thingsTodoList,
+                        tagList,
+                        imageUrl)
+                    newDestinations.add(destination)
                 }
-
+                allDestinations = newDestinations
                 _destinations.value = newDestinations
+                applyCurrentFiltersAndSort()
                 Log.d(TAG, "success: getAllDestinations")
-                Log.d(TAG, "Destinations $newDestinations")
+                Log.d(TAG, "Destinations ${newDestinations.size}")
             }
             .addOnFailureListener { exception ->
                 Log.d(TAG, "Failed: getAllDestinations: $exception")
             }
     }
-    // Destination detail screen
     @RequiresApi(Build.VERSION_CODES.O)
     fun storeReviewInfoOnReview(db: FirebaseFirestore,
-                                destinationId: String,
+                                currentDestinationId: String,
                                 rating: Int,
                                 title: String,
                                 description: String,
@@ -480,38 +608,60 @@ class FirebaseViewModel: ViewModel() {
             showMessage(context, "All fields are required to leave a review")
             return
         }
-        val userId = getCurrentUserId()
-        val review = hashMapOf(
-            "userId" to userId,
-            "destinationId" to destinationId,
-            "rating" to rating,
-            "title" to title,
-            "description" to description,
-            "timestamp" to getCurrentDate(),
-        )
-        db.collection("reviews")
-            .add(review)
-            .addOnSuccessListener { documentReference ->
-                val generatedId = documentReference.id
-                Log.d(TAG, "success: storeReviewInfoOnReview with id: $generatedId")
-                Log.d(TAG, "destinationId: $destinationId")
-                addReviewIdOnDestination(db, destinationId, generatedId, context)
+        //refresh _currentUserReviews
+        getCurrentUserReviewListFromUser(db, context){
+            //waiting for callback to proceed
+            val hasDestinationId = _currentUserReviews.value.any { review ->
+                review.destinationId == currentDestinationId
             }
-            .addOnFailureListener { e ->
-                Log.d(TAG, "failed: storeReviewInfoOnReview with id: $e")
-            }
+            //if user already post review for this destination
+            if (hasDestinationId) {
+                showMessage(context,"You can only post one review")
+            }else{
+                val userId = getCurrentUserId()
+                val review = hashMapOf(
+                    "reviewId" to "",
+                    "userId" to userId,
+                    "destinationId" to currentDestinationId,
+                    "rating" to rating,
+                    "title" to title,
+                    "description" to description,
+                    "timestamp" to getCurrentDate(),
+                )
+                db.collection("reviews")
+                    .add(review)
+                    .addOnSuccessListener { documentReference ->
+                        val generatedId = documentReference.id
+                        review["reviewId"] = generatedId
 
+                        db.collection("reviews")
+                            .document(generatedId)  // Use the generatedId as the document ID
+                            .set(review)
+                            .addOnSuccessListener {
+                                //showMessage(context,"Review Added")
+                                Log.d(TAG, "success: storeReviewInfoOnReview with id: $generatedId")
+                                addReviewIdOnDestination(db, currentDestinationId, generatedId, context)
+                                addReviewIdOnUser(db, generatedId)
+                            }
+                            .addOnFailureListener { e ->
+                                Log.d(TAG, "failed: storeReviewInfoOnReview: $e")
+                            }
+                    }
+            }
+        }
     }
+
     fun getReviewInfoFromReview(db: FirebaseFirestore, reviewId: String, callback: (Review) -> Unit){
-        val review = Review("","", 0, "","","")
-        Log.d(TAG, "empty review initialzed here")
+        val review = Review("","","", 0, "","","")
+        Log.d(TAG, "empty review initialized here")
         db.collection("reviews")
             .document(reviewId)
             .get()
             .addOnSuccessListener { document ->
                 if (document.exists() && document != null ) {
+                    review.reviewId = document.data?.get("reviewId").toString()
                     review.userId = document.data?.get("userId").toString()
-                    review.destination = document.data?.get("destination").toString()
+                    review.destinationId = document.data?.get("destinationId").toString()
                     review.rating = (document.data?.get("rating") as Number).toInt()
                     review.title = document.data?.get("title").toString()
                     review.description = document.data?.get("description").toString()
@@ -527,9 +677,26 @@ class FirebaseViewModel: ViewModel() {
                 callback(review)
             }
     }
+    fun updateReviewOnReview(db: FirebaseFirestore, reviewId: String, editedDescription: String, editedRating: Int, context: Context){
+        val docRef = db.collection("reviews").document(reviewId)
+
+        db.runTransaction { transaction ->
+            transaction.update(docRef, "description", editedDescription)
+            transaction.update(docRef, "rating", editedRating)
+        }
+        .addOnSuccessListener {
+            getCurrentUserReviewListFromUser(db, context){}
+            Log.d(TAG, "Transaction success: updateReviewOnReview $reviewId")
+            showMessage(context,"Review Updated")
+        }
+        .addOnFailureListener { e ->
+            Log.w(TAG, "Transaction failure: updateReviewOnReview $reviewId\": $e")
+        }
+    }
+
     fun addReviewIdOnDestination(db: FirebaseFirestore,
                                  destinationId: String,
-                                 generatedId: String,
+                                 reviewId: String,
                                  context: Context
     ) {
         val docRef = db.collection("destinations").document(destinationId)
@@ -537,35 +704,102 @@ class FirebaseViewModel: ViewModel() {
         db.runTransaction { transaction ->
             val currentList = transaction.get(docRef).get("reviewIdList")
                               as? MutableList<String> ?: mutableListOf()
-            currentList.add(generatedId)
+            currentList.add(reviewId)
             transaction.update(docRef, "reviewIdList", currentList)
         }
         .addOnSuccessListener {
-            Log.d(TAG, "Transaction success: ReviewId added to destination $generatedId")
+            Log.d(TAG, "Transaction success: ReviewId added to destination $reviewId")
             showMessage(context,"Review Added")
         }
         .addOnFailureListener { e ->
-            Log.w(TAG, "Transaction failure: ReviewId added to destination $generatedId\": $e")
+            Log.w(TAG, "Transaction failure: ReviewId added to destination $reviewId\": $e")
         }
     }
 
-    fun getReviewsByDestinationId(db: FirebaseFirestore) {
+    fun addReviewIdOnUser(db: FirebaseFirestore, reviewId: String){
         val userId = getCurrentUserId()
-        Log.d("zander", "currentId: $userId")
-        if (userId.isNotBlank()) {
-            db.collection("reviews")
+        val docRef = db.collection("users").document("user $userId")
 
+        db.runTransaction { transaction ->
+            val currentList = transaction.get(docRef).get("reviewIdList")
+                    as? MutableList<String> ?: mutableListOf()
+            currentList.add(reviewId)
+            transaction.update(docRef, "reviewIdList", currentList)
+        }
+            .addOnSuccessListener {
+                Log.d(TAG, "Transaction success: addReviewIdOnUser")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Transaction failure: addReviewIdOnUser: $e")
+            }
+    }
+
+    fun getCurrentUserReviewListFromUser(db: FirebaseFirestore, context: Context, callback: (String) -> Unit){
+        val userId = getCurrentUserId()
+        db.collection("users")
+            .document("user $userId")
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    val reviewIdList = document.get("reviewIdList") as? MutableList<String> ?: mutableListOf()
+                    //No review found
+                    if(reviewIdList.size==0){
+                        callback("proceed")
+                    }
+                    val reviewList = mutableListOf<Review>()
+                    for (reviewId in reviewIdList) {
+                        getReviewInfoFromReview(db, reviewId) { review ->
+                            reviewList.add(review)
+                            // Check if all titles have been retrieved
+                            if (reviewList.size == reviewIdList.size) {
+                                _currentUserReviews.value = reviewList
+                                callback("proceed")
+                                Log.d(TAG, "Success: getCurrentUserReviewIdListFromUser")
+                            }
+                        }
+                    }
+                } else {
+                    Log.d(TAG, "No such document")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: getCurrentUserReviewIdListFromUser", exception)
+            }
+    }
+    fun getDestinationNameByDestinationId(db: FirebaseFirestore, destinationId: String, callback: (String) -> Unit){
+        val userId = getCurrentUserId()
+        if (userId.isNotBlank()) {
+            db.collection("destinations")
+                .document(destinationId)
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document != null) {
+                        val name = document.data?.get("name").toString()
+                        callback(name)
+                        Log.d(TAG, "getDestinationNameByDestinationId: $name")
+                    } else {
+                        Log.d(TAG, "No such document")
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    Log.w(TAG, "Error getting documents: getDestinationNameByDestinationId", exception)
+                }
+        } else {
+            Log.d("zander", "Empty userId: getDestinationNameByDestinationId")
         }
     }
+
     fun getUserDisplayNameByUserId(db: FirebaseFirestore, userId: String, callback: (String) -> Unit) {
-        Log.d("zander", "currentId: $userId")
         if (userId.isNotBlank()) {
             db.collection("profiles")
                 .document("profile $userId")
                 .get()
                 .addOnSuccessListener { document ->
                     if (document != null) {
-                        val displayName = document.data?.get("displayName").toString()
+                        var displayName = document.data?.get("displayName").toString()
+                        if(displayName == "null"){
+                            displayName = "Deleted User"
+                        }
                         callback(displayName)
                         Log.d(TAG, "getUserDisplayNameByUserId: $displayName")
                     } else {
@@ -601,7 +835,249 @@ class FirebaseViewModel: ViewModel() {
             Log.d("zander", "Empty userId: getUserProfileImageUriByUserId")
         }
     }
+    //Trip
+    fun storeTripInfoOnTrip(db: FirebaseFirestore,
+                                newTrip: Trip,
+                                context: Context
+    ) {
+        if(newTrip.numOfPeople==0 || newTrip.title.isBlank()){
+            showMessage(context, "All fields are required")
+            return
+        }
+        val userId = getCurrentUserId()
+        val trip = hashMapOf(
+            "tripId" to "",
+            "userId" to userId,
+            "destinationIdList" to newTrip.destinations,
+            "numOfPeople" to newTrip.numOfPeople,
+            "startDate" to newTrip.startDate.toString(),
+            "endDate" to newTrip.startDate.toString(),
+            "title" to newTrip.title,
+            "description" to newTrip.description,
+            "isPublic" to newTrip.isPublic,
+        )
+        db.collection("trips")
+            .add(trip)
+            .addOnSuccessListener { documentReference ->
+                val generatedId = documentReference.id
 
+                // Update the tripId field in the existing trip HashMap
+                trip["tripId"] = generatedId
+
+                // Add the trip to Firestore with the updated tripId
+                db.collection("trips")
+                    .document(generatedId)  // Use the generatedId as the document ID
+                    .set(trip)
+                    .addOnSuccessListener {
+                        // Handle success if needed
+                        Log.d(TAG, "success: storeTripInfoOnTrip with id: $generatedId")
+                        addTripIdOnUser(db, generatedId, context)
+                    }
+                    .addOnFailureListener { e ->
+                        Log.d(TAG, "failed: storeTripInfoOnTrip with id: $e")
+                    }
+            }
+    }
+    fun addTripIdOnUser(db: FirebaseFirestore,
+                                 generatedId: String,
+                                 context: Context
+    ) {
+        val userId = getCurrentUserId()
+        val docRef = db.collection("users").document("user $userId")
+
+        db.runTransaction { transaction ->
+            val currentList = transaction.get(docRef).get("tripIdList")
+                    as? MutableList<String> ?: mutableListOf()
+            currentList.add(generatedId)
+            transaction.update(docRef, "tripIdList", currentList)
+        }
+            .addOnSuccessListener {
+                Log.d(TAG, "Transaction success: TripId added to tripList on user")
+                showMessage(context,"Trip Added")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Transaction failure: TripId added to tripList on user: $e")
+            }
+    }
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun getAllTrip(db: FirebaseFirestore) {
+        db.collection("trips")
+            .get()
+            .addOnSuccessListener { result ->
+                val currentUserId = getCurrentUserId()
+                val newTrips = mutableListOf<Trip>()
+                // for every trip
+                for (document in result) {
+                    val tripId = document.getString("tripId") ?: ""
+                    val userId = document.getString("userId") ?: ""
+                    val destinationIdList = document.get("destinationIdList") as? MutableList<String> ?: mutableListOf()
+                    val numOfPeople = (document.get("numOfPeople") as Number).toInt()
+                    val startDate = document.getString("startDate") ?: ""
+                    val endDate = document.getString("endDate") ?: ""
+                    val title = document.getString("title") ?: ""
+                    val description = document.getString("description") ?: ""
+                    val isPublic = document.get("isPublic") as Boolean
+
+                    if(!isPublic && currentUserId!=userId) continue
+
+                    val destinationList = mutableListOf<Destination>()
+
+                    //add all destinations of a trip to its destinationList
+                    for (destinationId in destinationIdList) {
+                        val matchingDestination =
+                            _destinations.value.find {
+                                it.destinationId == destinationId
+                            }
+                        //add destination info
+                        matchingDestination?.let {
+                            destinationList.add(it)
+                        }
+                    }
+                    val trip = Trip(
+                        tripId,
+                        userId,
+                        destinationList,
+                        numOfPeople,
+                        parseStringToLocalDate(startDate),
+                        parseStringToLocalDate(endDate),
+                        title,
+                        description,
+                        isPublic
+                    )
+                    newTrips.add(trip)
+
+                }
+                _allTrips.value = newTrips
+                Log.w(TAG, "Success getting documents: getAllTrip")
+
+            }.addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: getAllTrip", exception)
+            }
+    }
+    fun updateIsPublicForTrip(db: FirebaseFirestore,
+                              tripId: String,
+                              isPublic: Boolean,
+                              context: Context
+    ){
+        val docRef = db.collection("trips").document(tripId)
+
+        db.runTransaction { transaction ->
+            transaction.update(docRef, "isPublic", isPublic)
+        }.addOnSuccessListener {
+            Log.d(TAG, "Transaction updateIsPublicForTrip: success!")
+            Log.d(TAG, "isPublic: $isPublic")
+            showMessage(context,"Trip Visibility Updated")
+        }.addOnFailureListener { e ->
+            Log.w(TAG, "Transaction updateIsPublicForTrip: failure", e)
+        }
+    }
+    // Custom exception class for duplicate destination
+    class DuplicateDestinationException(message: String) : Exception(message)
+    // Save this destination to a trip current user created
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun addDestinationIdOnTrip(db: FirebaseFirestore,
+                               tripId: String,
+                               destinationId: String,
+                               context: Context
+    ) {
+        val docRef = db.collection("trips").document(tripId)
+
+        db.runTransaction { transaction ->
+            val currentIdList = transaction.get(docRef).get("destinationIdList") as? MutableList<String> ?: mutableListOf()
+
+            if (!currentIdList.contains(destinationId)) {
+                currentIdList.add(destinationId)
+                transaction.update(docRef, "destinationIdList", currentIdList)
+            } else {
+                Log.d(TAG, "Cannot add duplicate destination")
+                throw DuplicateDestinationException("Cannot Add Duplicate Destination")
+            }
+        }
+        .addOnSuccessListener {
+            Log.d(TAG, "Transaction success: DestinationId added to tripList on trip")
+            showMessage(context,"Destination Added to trip")
+            //refresh all trips
+            getAllTrip(db)
+        }
+        .addOnFailureListener { e ->
+            Log.w(TAG, "Transaction failure: DestinationId added to tripList on trip: $e")
+            if (e is DuplicateDestinationException) {
+                // Handle the custom exception
+                showMessage(context, e.message!!)
+            } else {
+                Log.w(TAG, "Transaction failure: DestinationId added to tripList on trip: $e")
+            }
+        }
+    }
+    //On a destination detail screen, user can get the tripId and tripTitle of the trips they created
+    fun getCurrentUserTrips(db: FirebaseFirestore){
+        val userId = getCurrentUserId()
+        db.collection("users")
+            .document("user $userId")
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    val tripIdList = document.get("tripIdList") as? MutableList<String> ?: mutableListOf()
+                    val tripTitleList = mutableListOf<Pair<String, String>>()
+                    for (tripId in tripIdList) {
+                        getTripTitleByTripId(db, tripId) { tripTitle ->
+                            tripTitleList.add(Pair(tripId, tripTitle))
+                            // Check if all titles have been retrieved
+                            if (tripTitleList.size == tripIdList.size) {
+                                _currentUserTrips.value = tripTitleList
+                            }
+                        }
+                    }
+
+                    Log.d(TAG, "Success: get TripIdList ForCurrentUser")
+                } else {
+                    Log.d(TAG, "No such document")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: getCurrentUserCurrencyFromUser", exception)
+            }
+
+    }
+    fun getTripTitleByTripId(db: FirebaseFirestore, tripId: String, callback: (String) -> Unit){
+        val userId = getCurrentUserId()
+        db.collection("trips")
+            .document(tripId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    val title = document.getString("title") ?: ""
+                    callback(title)
+                    Log.d(TAG, "Success: getTripTitleByTripId")
+                } else {
+                    Log.d(TAG, "No such document: getTripTitleByTripId")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: getTripTitleByTripId", exception)
+            }
+    }
+    fun removeDestinationFromTrip(db: FirebaseFirestore,
+                                  tripId: String,
+                                  destinationId: String,
+                                  context: Context
+    ){
+        val docRef = db.collection("trips").document(tripId)
+
+        db.runTransaction { transaction ->
+            val currentList = transaction.get(docRef).get("destinationIdList")
+                    as? MutableList<String> ?: mutableListOf()
+            currentList.remove(destinationId)
+            transaction.update(docRef, "destinationIdList", currentList)
+        }
+            .addOnSuccessListener {
+                Log.d(TAG, "Transaction success: deleteDestinationFromTrip")
+                showMessage(context,"Destination Removed")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Transaction failure: deleteDestinationFromTrip: $e")
+            }
+    }
 
     fun showMessage(context: Context, message:String){
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -617,6 +1093,80 @@ class FirebaseViewModel: ViewModel() {
 
     fun getCurrentUserId(): String {
         return currentUserId
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun parseStringToLocalDate(dateString: String): LocalDate {
+        // Define the date format
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+
+        // Parse the string to LocalDate
+        return LocalDate.parse(dateString, formatter)
+    }
+
+    //Sorting + Filtering
+    fun sortDestinations(sortOption: SortingOption) {
+        currentSortOption.value = sortOption
+        applyCurrentFiltersAndSort()
+    }
+
+    fun filterProducts(filterOption: FilteringOption) {
+        currentFilterOption.value = filterOption
+        applyCurrentFiltersAndSort()
+    }
+    private fun applyCurrentFiltersAndSort() {
+        val filteredList = when (currentFilterOption.value ?: FilteringOption.None) {
+            FilteringOption.None -> allDestinations
+            else -> allDestinations.filter { currentFilterOption.value!!.displayName in it.tags }
+        }
+
+        val sortedList = when (currentSortOption.value ?: SortingOption.Name) {
+            SortingOption.Name -> filteredList.sortedBy { it.name }
+            SortingOption.Price -> filteredList.sortedBy { it.price }
+            SortingOption.Ratings -> filteredList.sortedByDescending { getavgRating(it) }
+        }
+
+        _destinations.value = if (isReversed.value == true) sortedList.reversed().toMutableList() else sortedList.toMutableList()
+    }
+
+    private fun getavgRating(d: Destination): Double {
+        if (d.reviewList.isEmpty()) {
+            return 0.0
+        }
+        val totalRating = d.reviewList.sumOf { it.rating }
+        return totalRating.toDouble() / d.reviewList.size
+    }
+
+    fun toggleSortOrder(currentSortOption: SortingOption? = null) {
+        isReversed.value = !(isReversed.value ?: false)
+        applyCurrentFiltersAndSort()
+    }
+
+    fun deleteTrip(db: FirebaseFirestore, tripId:String, callback: (String) -> Unit){
+        val userId = getCurrentUserId()
+        db.collection("users")
+            .document("user $userId")
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    val tripIdList = document.get("tripIdList") as? MutableList<String> ?: mutableListOf()
+                    if(tripId in tripIdList){
+                        db.collection("trips")
+                            .document(tripId)
+                            .delete()
+                            .addOnFailureListener { e ->
+                                Log.w(TAG, "Error delete trip tripId: $tripId", e)
+                            }
+                        callback("proceed")
+                    }
+                    Log.d(TAG, "Success: delete trip tripId: $tripId")
+                } else {
+                    Log.d(TAG, "No such document: delete trip tripId")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: delete trip tripId", exception)
+            }
     }
 
 }

@@ -15,16 +15,24 @@ val ageRecommendation: String,
 val thingsTodo: List<String>,
 val tags: List<String>,
 val imageUrl: String
-)
-
-data class Price(
-    val value: Double,
-    val currency: String
-)
+) {
+    fun doesMatchSearchQuery(query:String):Boolean {
+        val matchingCombinations = listOf(
+            name,
+            name.split(" ")[0],
+            location,
+            location.split(",")[0]
+        )
+        return matchingCombinations.any {
+            it.contains(query, ignoreCase = true)
+        }
+    }
+}
 
 data class Review(
+    var reviewId: String,
     var userId: String,
-    var destination: String,
+    var destinationId: String,
     var rating: Int,
     var title: String,
     var description: String,
