@@ -1142,8 +1142,10 @@ class FirebaseViewModel: ViewModel() {
         applyCurrentFiltersAndSort()
     }
 
-    fun deleteTrip(db: FirebaseFirestore, tripId: String, callback: (String) -> Unit) {
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun deleteTrip(db: FirebaseFirestore, tripId: String, context: Context, callback: (String) -> Unit) {
         val userId = getCurrentUserId()
+
         db.collection("users")
             .document("user $userId")
             .get()
@@ -1151,16 +1153,20 @@ class FirebaseViewModel: ViewModel() {
                 if (document != null) {
                     val tripIdList = document.get("tripIdList") as? MutableList<String> ?: mutableListOf()
                     if (tripId in tripIdList) {
+                        // Remove the trip from the trips collection
                         db.collection("trips")
                             .document(tripId)
                             .delete()
                             .addOnSuccessListener {
+                                // Remove the tripId from the user's tripIdList
                                 tripIdList.remove(tripId)
                                 db.collection("users")
                                     .document("user $userId")
                                     .update("tripIdList", tripIdList)
                                     .addOnSuccessListener {
+                                        getAllTrip(db)
                                         callback("Trip deleted successfully.")
+                                        showMessage(context, "Trip deleted successfully.")
                                     }
                                     .addOnFailureListener { e ->
                                         Log.w(TAG, "Error updating user's trip list", e)
@@ -1184,6 +1190,22 @@ class FirebaseViewModel: ViewModel() {
                 callback("Failed to get user document.")
             }
     }
+    fun resetDataOnLogout() {
+        currentUserId = ""
 
+        _displayName.value = ""
+        _profilePicDownloadUri.value = ""
+        _userCurrency.value = ""
 
+        _destinations.value = mutableListOf()
+        _searchText.value = ""
+
+        _allTrips.value = mutableListOf()
+        _currentUserTrips.value = mutableListOf()
+        _currentUserReviews.value = mutableListOf()
+
+        currentSortOption.value = SortingOption.Name
+        currentFilterOption.value = FilteringOption.None
+        isReversed.value = false
+    }
 }

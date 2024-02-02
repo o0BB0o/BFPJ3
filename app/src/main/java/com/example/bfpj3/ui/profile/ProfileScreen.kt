@@ -183,8 +183,8 @@ fun DeleteAccountButton(db: FirebaseFirestore, storage: FirebaseStorage, firebas
     // Confirmation Dialog
     if (showConfirmationDialog) {
         ConfirmDeleteDialog(onConfirm = {
-            // TODO delete the account
             firebaseViewModel.deleteAccountAndData(db, storage, context,navController)
+            firebaseViewModel.resetDataOnLogout()
             showConfirmationDialog = false
         }, onDismiss = {
             showConfirmationDialog = false

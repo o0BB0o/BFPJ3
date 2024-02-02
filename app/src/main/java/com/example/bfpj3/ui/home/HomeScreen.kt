@@ -17,15 +17,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Card
 import androidx.compose.material.Chip
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TextField
 import androidx.compose.material.icons.Icons
@@ -35,8 +32,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,7 +50,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -111,6 +109,7 @@ fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewMode
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterialApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun DestinationCard(destination: Destination, currentCurrency: String, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore,onClick: () -> Unit) {
@@ -138,7 +137,7 @@ fun DestinationCard(destination: Destination, currentCurrency: String, firebaseV
                 Text(text = "Rating: ${viewModel.getavgRating(destination)}")
                 Text(text = "Location: ${destination.location}")
                 Text(text = "Price: ${viewModel.priceExchanger(destination.price, currentCurrency)}")
-                FlowRow(){
+                FlowRow {
                     destination.tags.forEach { tag ->
                         Chip(onClick = {}) {
                             Text(tag)
@@ -157,18 +156,16 @@ fun DestinationCard(destination: Destination, currentCurrency: String, firebaseV
             db,
             destination.destinationId,
             onDismiss = { showAddToTripDialog = false },
-            onSelectTripId = { selectedTrip ->
-                //TODO add to destination to trip
-                //viewModel.addToTrip(destination, selectedTrip)
+            onSelectTripId = {
                 showAddToTripDialog = false
             }
         )
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AddToTripDialog(firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore, destinationId: String, onDismiss: () -> Unit, onSelectTripId: (String) -> Unit) {
-    // TODO change trip to trip from VM (Also slightly change the logic below)
     var selectedTripId by remember { mutableStateOf<String?>(null) }
     val trips = firebaseViewModel.currentUserTrips.collectAsState()
     val context = LocalContext.current
@@ -228,7 +225,7 @@ fun SearchBar(firebaseViewModel: FirebaseViewModel, navController: NavController
         TextField(
             value = text,
             onValueChange = firebaseViewModel::onSearchTextChange,
-            label = { Text("Search")
+            label = { Text("Search by Name or Location")
                 firebaseViewModel.onSearchTextChange(text)},
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
             modifier = Modifier.fillMaxWidth(),

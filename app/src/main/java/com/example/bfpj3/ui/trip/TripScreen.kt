@@ -1,16 +1,15 @@
 package com.example.bfpj3.ui.trip
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -24,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.Card
-import androidx.compose.material.Chip
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -37,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
@@ -57,13 +54,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
 import com.example.bfpj3.R
 import com.example.bfpj3.ui.data.Destination
-import com.example.bfpj3.ui.home.DestinationCard
 import com.example.bfpj3.ui.home.HomeViewModel
 import com.example.bfpj3.database.FirebaseViewModel
-import com.example.bfpj3.ui.home.AddToTripDialog
 import com.google.firebase.firestore.FirebaseFirestore
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -71,13 +65,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 fun TripScreen(navController: NavController, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     val tripViewModel: TripViewModel = viewModel(LocalContext.current as ComponentActivity)
 
-    val trips by firebaseViewModel.allTrips.collectAsState()
+    val trips by firebaseViewModel.allTrips.collectAsState(listOf())
     val selectedTrip by tripViewModel.selectedTrip.observeAsState()
-
-    LaunchedEffect(firebaseViewModel.allTrips.collectAsState()) {
-        firebaseViewModel.getAllTrip(db)
-    }
-    Text(text = "trips size: ${trips.size}")
+    firebaseViewModel.getAllTrip(db)
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -92,7 +82,7 @@ fun TripScreen(navController: NavController, db: FirebaseFirestore, firebaseView
         }
         // Display list of trips
         items(trips) { trip ->
-            TripCard(trips, trip, selectedTrip, tripViewModel,db,firebaseViewModel)
+            TripCard(trip, selectedTrip, tripViewModel,db,firebaseViewModel)
         }
     }
 }
@@ -136,7 +126,7 @@ fun NewTripCard(onAddTripClick: () -> Unit) {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun TripCard(trips: MutableList<Trip>, trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
+fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     var checked by remember { mutableStateOf(trip.isPublic) }
     val context = LocalContext.current
     val showConfirmationDialog = remember { mutableStateOf(false) }
@@ -213,8 +203,7 @@ fun TripCard(trips: MutableList<Trip>, trip: Trip, selectedTrip: Trip?, tripView
                     onConfirm = {
                         // Perform the deletion logic here
                         // Remove the trip from the user, update the ViewModel, etc.
-                        trips.remove(selectedTrip)
-                        firebaseViewModel.deleteTrip(db, trip.tripId){}
+                        firebaseViewModel.deleteTrip(db, trip.tripId, context){}
                     },
                     onCancel = {
                         // Close the confirmation dialog
@@ -227,6 +216,7 @@ fun TripCard(trips: MutableList<Trip>, trip: Trip, selectedTrip: Trip?, tripView
     }
 }
 
+@SuppressLint("UnrememberedMutableState")
 @Composable
 fun DestinationList(trip: Trip, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore) {
     val destinations = mutableStateListOf(*trip.destinations.toTypedArray())
@@ -239,7 +229,7 @@ fun DestinationList(trip: Trip, firebaseViewModel: FirebaseViewModel, db: Fireba
     for (destination in destinations) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
-                SimpleDestinationCard(destination, "USD" , firebaseViewModel,db,onClick = {})
+                SimpleDestinationCard(destination, firebaseViewModel,db,onClick = {})
             }
 
             IconButton(
@@ -309,8 +299,9 @@ fun ConfirmationDialog(
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalLayoutApi::class)
 @Composable
-fun SimpleDestinationCard(destination: Destination, currentCurrency: String, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore,onClick: () -> Unit) {
+fun SimpleDestinationCard(destination: Destination, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore,onClick: () -> Unit) {
     val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
+    val currentCurrency by firebaseViewModel.userCurrency.collectAsState("")
     Card(modifier = Modifier
         .padding(8.dp)
         .fillMaxWidth()
@@ -319,7 +310,7 @@ fun SimpleDestinationCard(destination: Destination, currentCurrency: String, fir
             AsyncImage(
                 model = destination.imageUrl,
                 modifier = Modifier
-                    .width(100.dp)
+                    .width(50.dp)
                     .aspectRatio(1f)
                     .clip(RectangleShape),
                 contentScale = ContentScale.Crop,
@@ -329,8 +320,7 @@ fun SimpleDestinationCard(destination: Destination, currentCurrency: String, fir
             Column(modifier = Modifier
                 .padding(8.dp)
                 .weight(1f)) {
-                Text(text = destination.name, style = MaterialTheme.typography.headlineMedium)
-                Text(text = "Rating: ${viewModel.getavgRating(destination)}")
+                Text(text = destination.name, style = MaterialTheme.typography.headlineSmall)
                 Text(text = "Location: ${destination.location}")
                 Text(text = "Price: ${viewModel.priceExchanger(destination.price, currentCurrency)}")
             }

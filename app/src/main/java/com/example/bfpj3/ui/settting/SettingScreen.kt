@@ -104,6 +104,7 @@ fun SettingScreen(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel, n
         Button(
             onClick = {
                 auth.signOut()
+                firebaseViewModel.resetDataOnLogout()
                 navController.navigate("LoginScreen") {
                     popUpTo(BottomNavItem.Home.route) {
                         inclusive = true

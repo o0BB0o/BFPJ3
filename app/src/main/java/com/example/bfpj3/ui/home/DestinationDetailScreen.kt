@@ -18,17 +18,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material.Chip
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.OutlinedTextField
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconToggleButton
-import androidx.compose.material3.TextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -82,7 +80,7 @@ fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
         Text(text = destination!!.description)
         Spacer(modifier = Modifier.size(16.dp))
         Text("Things to Do", style = MaterialTheme.typography.headlineSmall)
-        FlowRow(){
+        FlowRow {
             destination!!.thingsTodo.forEach { tag ->
                 Chip(onClick = {}) {
                     androidx.compose.material.Text(tag)
@@ -101,7 +99,7 @@ fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
         Text("Average Rating: $avgRating",
             style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.size(16.dp))
-        ReviewsSection(destination!!, viewModel, db, firebaseViewModel)
+        ReviewsSection(destination!!, db, firebaseViewModel)
 
         Spacer(modifier = Modifier.size(16.dp))
         WriteReviewSection(onSubmit = { rating, description, title ->
@@ -114,9 +112,7 @@ fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
             db,
             destination!!.destinationId,
             onDismiss = { showAddToTripDialog = false },
-            onSelectTripId = { selectedTrip ->
-                //TODO add to destination to trip
-                //viewModel.addToTrip(destination, selectedTrip)
+            onSelectTripId = {
                 showAddToTripDialog = false
             }
         )
@@ -125,7 +121,11 @@ fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
 
 
 @Composable
-fun ReviewsSection(destination: Destination, viewModel:HomeViewModel, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
+fun ReviewsSection(
+    destination: Destination,
+    db: FirebaseFirestore,
+    firebaseViewModel: FirebaseViewModel
+) {
     if(destination.reviewList.isEmpty()) {
         Text(text = "No Review Right Now. Check back later! ")
     }
