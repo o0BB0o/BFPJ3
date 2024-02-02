@@ -79,6 +79,8 @@ fun DestinationDetail(db: FirebaseFirestore, firebaseViewModel: FirebaseViewMode
             contentDescription = "Destination Image")
         val avgRating = viewModel.getavgRating(destination!!)
         Spacer(modifier = Modifier.size(16.dp))
+        Text(text = destination!!.description)
+        Spacer(modifier = Modifier.size(16.dp))
         Text("Things to Do", style = MaterialTheme.typography.headlineSmall)
         FlowRow(){
             destination!!.thingsTodo.forEach { tag ->
@@ -187,7 +189,6 @@ fun ReviewTitleEdit(title: String, onTitleChange: (String) -> Unit) {
 @Composable
 fun ReviewContentEdit(content: String, onContentChange: (String) -> Unit) {
     val wordCount = content.trim().split("\\s+".toRegex()).count { it.isNotEmpty() }
-    val isOverLimit = wordCount > 100
 
     OutlinedTextField(
         value = content,

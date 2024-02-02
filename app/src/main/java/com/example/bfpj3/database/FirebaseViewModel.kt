@@ -1142,4 +1142,31 @@ class FirebaseViewModel: ViewModel() {
         applyCurrentFiltersAndSort()
     }
 
+    fun deleteTrip(db: FirebaseFirestore, tripId:String, callback: (String) -> Unit){
+        val userId = getCurrentUserId()
+        db.collection("users")
+            .document("user $userId")
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    val tripIdList = document.get("tripIdList") as? MutableList<String> ?: mutableListOf()
+                    if(tripId in tripIdList){
+                        db.collection("trips")
+                            .document(tripId)
+                            .delete()
+                            .addOnFailureListener { e ->
+                                Log.w(TAG, "Error delete trip tripId: $tripId", e)
+                            }
+                        callback("proceed")
+                    }
+                    Log.d(TAG, "Success: delete trip tripId: $tripId")
+                } else {
+                    Log.d(TAG, "No such document: delete trip tripId")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "Error getting documents: delete trip tripId", exception)
+            }
+    }
+
 }
