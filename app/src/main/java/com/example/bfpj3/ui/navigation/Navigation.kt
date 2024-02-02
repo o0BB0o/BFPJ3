@@ -62,7 +62,7 @@ fun NavigationGraph(auth: FirebaseAuth, db: FirebaseFirestore, storage: Firebase
             composable("LoginScreen") { LoginScreen(navController = navController, auth, firebaseViewModel) }
             composable("RegisterScreen") { RegisterScreen(navController = navController, auth, db,firebaseViewModel) }
             composable("reviewHistory") { ReviewHistoryScreen(navController,db,firebaseViewModel)}
-            composable("addNewTripScreen") { AddNewTripScreen(db, firebaseViewModel) }
+            composable("addNewTripScreen") { AddNewTripScreen(navController, db, firebaseViewModel) }
         }
     }
 }

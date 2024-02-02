@@ -9,8 +9,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,15 +49,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
+import com.example.bfpj3.R
 import com.example.bfpj3.ui.data.Destination
 import com.example.bfpj3.ui.home.DestinationCard
 import com.example.bfpj3.ui.home.HomeViewModel
 import com.example.bfpj3.database.FirebaseViewModel
+import com.example.bfpj3.ui.home.AddToTripDialog
 import com.google.firebase.firestore.FirebaseFirestore
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -83,7 +92,7 @@ fun TripScreen(navController: NavController, db: FirebaseFirestore, firebaseView
         }
         // Display list of trips
         items(trips) { trip ->
-            TripCard(trip, selectedTrip, tripViewModel,db,firebaseViewModel)
+            TripCard(trips, trip, selectedTrip, tripViewModel,db,firebaseViewModel)
         }
     }
 }
@@ -127,9 +136,10 @@ fun NewTripCard(onAddTripClick: () -> Unit) {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
+fun TripCard(trips: MutableList<Trip>, trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     var checked by remember { mutableStateOf(trip.isPublic) }
     val context = LocalContext.current
+    val showConfirmationDialog = remember { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -155,7 +165,7 @@ fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel, db: 
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = trip.title, style = MaterialTheme.typography.titleLarge)
+                Text(text = trip.title, style = MaterialTheme.typography.headlineMedium)
 
                 // Toggle switch for public/private
                 Column {
@@ -175,14 +185,43 @@ fun TripCard(trip: Trip, selectedTrip: Trip?, tripViewModel: TripViewModel, db: 
             Spacer(modifier = Modifier.height(8.dp))
 
             // Description and other trip details can be displayed here
-            Text(text = trip.description, style = MaterialTheme.typography.bodyMedium)
-            Text(text = "Number of People: ${trip.numOfPeople}", style = MaterialTheme.typography.bodyMedium)
-            Text(text = "Duration: ${trip.duration}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = trip.description)
+            Text(text = "Number of People: ${trip.numOfPeople}")
+            Text(text = "Start Date: ${trip.startDate}")
+            Text(text = "End Date: ${trip.endDate}")
 
             Spacer(modifier = Modifier.height(8.dp))
             // Display list of destinations for the selected trip
             if (selectedTrip == trip) {
                 DestinationList(trip,firebaseViewModel, db)
+            }
+
+            IconButton(
+                onClick = {
+                    // Show the confirmation dialog when the delete button is clicked
+                    showConfirmationDialog.value = true
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete Trip"
+                )
+            }
+
+            if (showConfirmationDialog.value) {
+                ConfirmationDialog(
+                    onConfirm = {
+                        // Perform the deletion logic here
+                        // Remove the trip from the user, update the ViewModel, etc.
+                        trips.remove(selectedTrip)
+                        firebaseViewModel.deleteTrip(db, trip.tripId){}
+                    },
+                    onCancel = {
+                        // Close the confirmation dialog
+                        showConfirmationDialog.value = false
+                    },
+                    "trip"
+                )
             }
         }
     }
@@ -200,7 +239,7 @@ fun DestinationList(trip: Trip, firebaseViewModel: FirebaseViewModel, db: Fireba
     for (destination in destinations) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
-                DestinationCard(destination, "USD" , firebaseViewModel,db,onClick = {})
+                SimpleDestinationCard(destination, "USD" , firebaseViewModel,db,onClick = {})
             }
 
             IconButton(
@@ -231,7 +270,8 @@ fun DestinationList(trip: Trip, firebaseViewModel: FirebaseViewModel, db: Fireba
             onCancel = {
                 // Close the confirmation dialog
                 showConfirmationDialog.value = false
-            }
+            },
+            "destination"
         )
     }
 }
@@ -239,13 +279,14 @@ fun DestinationList(trip: Trip, firebaseViewModel: FirebaseViewModel, db: Fireba
 @Composable
 fun ConfirmationDialog(
     onConfirm: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    type: String
 ) {
     // UI for the confirmation dialog
     AlertDialog(
         onDismissRequest = onCancel,
         title = { Text(text = "Confirm Deletion") },
-        text = { Text(text = "Are you sure you want to delete this destination?") },
+        text = { Text(text = "Are you sure you want to delete this ${type}?") },
         confirmButton = {
             Button(
                 onClick = {
@@ -266,32 +307,32 @@ fun ConfirmationDialog(
     )
 }
 
+@OptIn(ExperimentalMaterialApi::class, ExperimentalLayoutApi::class)
 @Composable
-@OptIn(ExperimentalMaterialApi::class)
-fun SimpleDestinationCard(destination: Destination, onClick: () -> Unit) {
-    val viewModel: HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
+fun SimpleDestinationCard(destination: Destination, currentCurrency: String, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore,onClick: () -> Unit) {
+    val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
     Card(modifier = Modifier
         .padding(8.dp)
         .fillMaxWidth()
         .clickable(onClick = onClick), elevation = 4.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painter = rememberAsyncImagePainter(model = destination.imageUrl),
-                contentDescription = "Destination Image",
-                modifier = Modifier.size(100.dp)
-            )
-            Column(modifier = Modifier.padding(8.dp)) {
+            AsyncImage(
+                model = destination.imageUrl,
+                modifier = Modifier
+                    .width(100.dp)
+                    .aspectRatio(1f)
+                    .clip(RectangleShape),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.ic_launcher_foreground),
+                error = painterResource(id = R.drawable.ic_launcher_foreground),
+                contentDescription = "Destination Image")
+            Column(modifier = Modifier
+                .padding(8.dp)
+                .weight(1f)) {
                 Text(text = destination.name, style = MaterialTheme.typography.headlineMedium)
                 Text(text = "Rating: ${viewModel.getavgRating(destination)}")
                 Text(text = "Location: ${destination.location}")
-                Text(text = "Price: ${destination.price}")
-                Row(){
-                    destination.tags.forEach { tag ->
-                        Chip(onClick = {}) {
-                            Text(tag)
-                        }
-                    }
-                }
+                Text(text = "Price: ${viewModel.priceExchanger(destination.price, currentCurrency)}")
             }
         }
     }

@@ -59,7 +59,7 @@ class FirebaseViewModel: ViewModel() {
 
 
     private var _allTrips = MutableStateFlow<MutableList<Trip>>(mutableListOf())
-    val allTrips: StateFlow<List<Trip>> = _allTrips
+    val allTrips: StateFlow<MutableList<Trip>> = _allTrips
 
     private var _currentUserTrips = MutableStateFlow<MutableList<Pair<String, String>>>(mutableListOf())
     val currentUserTrips: StateFlow<List<Pair<String, String>>> = _currentUserTrips

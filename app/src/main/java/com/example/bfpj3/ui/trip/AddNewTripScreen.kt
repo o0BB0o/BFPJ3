@@ -1,6 +1,7 @@
 package com.example.bfpj3.ui.trip
 
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.text.isDigitsOnly
+import androidx.navigation.NavController
 import com.example.bfpj3.database.FirebaseViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.DateFormat.getDateInstance
@@ -47,7 +49,7 @@ import java.util.TimeZone
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun AddNewTripScreen(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
+fun AddNewTripScreen(navController: NavController, db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     var tripName by remember { mutableStateOf("") }
     var numOfPeople by remember { mutableStateOf("") }
     var isPublic by remember { mutableStateOf(true) }
@@ -158,14 +160,17 @@ fun AddNewTripScreen(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel
                             endDate = it
                         }
                     },
-                    onDismiss = { showDatePicker = false }
+                    onDismiss = {
+                        showDatePicker = false
+                    }
                 )
             }
         }
 
         Button(
             onClick = {
-//                 Create the trip and pass it to the callback
+                if (numOfPeople.isNotEmpty() && tripName.isNotEmpty()) {
+                    // Number of people and trip name are not empty, create the trip
                     val newTrip = Trip(
                         userId = "",
                         tripId = "",
@@ -178,8 +183,12 @@ fun AddNewTripScreen(db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel
                         isPublic = isPublic
                     )
                     firebaseViewModel.storeTripInfoOnTrip(db, newTrip, context)
-//                onAddTrip(newTrip)
-//                onDismiss()
+                    navController.navigate("trip")
+                    // Call any other necessary actions after creating the trip here
+                } else {
+                    // Display a message or handle the case where either numOfPeople or tripName is empty
+                    Toast.makeText(context, "Cannot leave empty fields!", Toast.LENGTH_SHORT).show()
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
