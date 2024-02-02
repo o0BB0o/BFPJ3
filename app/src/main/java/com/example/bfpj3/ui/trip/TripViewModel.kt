@@ -4,13 +4,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.bfpj3.ui.data.Destination
-import com.example.bfpj3.ui.data.Price
-import com.example.bfpj3.ui.data.Review
-import com.google.firebase.Timestamp
-import java.time.Duration
-import java.time.LocalDate
-import kotlin.time.Duration.Companion.days
+
 
 @RequiresApi(Build.VERSION_CODES.O)
 class TripViewModel : ViewModel() {

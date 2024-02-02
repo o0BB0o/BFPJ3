@@ -566,52 +566,25 @@ class FirebaseViewModel: ViewModel() {
                     val thingsTodoList = document.get("thingsTodoList") as? List<String> ?: emptyList()
                     val tagList = document.get("tagList") as? List<String> ?: emptyList()
                     val imageUrl = document.getString("imageUrl") ?: ""
-
                     val reviewList = mutableListOf<Review>()
-                    //if a destination has no review
-                    if(reviewIdList.isEmpty()){
-                        val destination = Destination(
-                            destinationId,
-                            name,
-                            ownerOrganization,
-                            location,
-                            description,
-                            reviewList,
-                            price,
-                            localLanguageList,
-                            ageRecommendation,
-                            thingsTodoList,
-                            tagList,
-                            imageUrl
-                        )
-                        newDestinations.add(destination)
-                        Log.d(TAG, "current d name: ${destination}")
-                    }
-
                     for (reviewId in reviewIdList) {
                         getReviewInfoFromReview(db, reviewId) { review ->
-                            reviewList.add(review)
-                            Log.d(TAG, "current reviewlist size: ${reviewList.size}")
-                            // Check if all reviews for this destination have been retrieved
-                            if (reviewList.size == reviewIdList.size) {
-                                val destination = Destination(
-                                    destinationId,
-                                    name,
-                                    ownerOrganization,
-                                    location,
-                                    description,
-                                    reviewList,
-                                    price,
-                                    localLanguageList,
-                                    ageRecommendation,
-                                    thingsTodoList,
-                                    tagList,
-                                    imageUrl
-                                )
-                                newDestinations.add(destination)
-                            }
-                        }
+                            reviewList.add(review) }
                     }
+                    val destination = Destination(
+                        destinationId,
+                        name,
+                        ownerOrganization,
+                        location,
+                        description,
+                        reviewList,
+                        price,
+                        localLanguageList,
+                        ageRecommendation,
+                        thingsTodoList,
+                        tagList,
+                        imageUrl)
+                    newDestinations.add(destination)
                 }
                 allDestinations = newDestinations
                 _destinations.value = newDestinations
