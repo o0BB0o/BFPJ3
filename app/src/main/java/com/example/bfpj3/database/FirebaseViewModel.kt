@@ -7,6 +7,7 @@ import android.util.Log
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import com.example.bfpj3.ui.data.Destination
@@ -65,6 +66,12 @@ class FirebaseViewModel: ViewModel() {
 
     private var _currentUserReviews = MutableStateFlow<MutableList<Review>>(mutableListOf())
     val currentUserReviews: StateFlow<List<Review>> = _currentUserReviews
+
+    // Sorting + Filtering
+    var currentSortOption = MutableLiveData<SortingOption>(SortingOption.Name)
+    var currentFilterOption: FilteringOption = FilteringOption.None
+    lateinit var allDestinations : List<Destination>
+    private var isReversed = MutableLiveData<Boolean>(false)
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun register(auth: FirebaseAuth,
@@ -607,6 +614,8 @@ class FirebaseViewModel: ViewModel() {
                 }
 
                 _destinations.value = newDestinations
+                allDestinations = newDestinations
+                applyCurrentFiltersAndSort()
                 Log.d(TAG, "success: getAllDestinations")
                 Log.d(TAG, "Destinations $newDestinations")
             }
@@ -1120,6 +1129,45 @@ class FirebaseViewModel: ViewModel() {
 
         // Parse the string to LocalDate
         return LocalDate.parse(dateString, formatter)
+    }
+
+
+    //Sorting + Filtering
+    fun sortDestinations(sortOption: SortingOption) { //TODO
+        currentSortOption.value = sortOption
+        applyCurrentFiltersAndSort()
+    }
+
+    fun filterProducts(filterOption: FilteringOption) { //TODO
+        currentFilterOption = filterOption
+        applyCurrentFiltersAndSort()
+    }
+    private fun applyCurrentFiltersAndSort() {
+        val filteredList = when (currentFilterOption) {
+            FilteringOption.None -> allDestinations
+            else -> allDestinations.filter { currentFilterOption.displayName in it.tags }
+        }
+
+        val sortedList = when (currentSortOption.value ?: SortingOption.Name) {
+            SortingOption.Name -> filteredList.sortedBy { it.name }
+            SortingOption.Price -> filteredList.sortedBy { it.price }
+            SortingOption.Ratings -> filteredList.sortedByDescending { getavgRating(it) }
+        }
+
+        _destinations.value = if (isReversed.value == true) sortedList.reversed().toMutableList() else sortedList.toMutableList()
+    }
+
+    private fun getavgRating(d: Destination): Double {
+        if (d.reviewList.isEmpty()) {
+            return 0.0
+        }
+        val totalRating = d.reviewList.sumOf { it.rating }
+        return totalRating.toDouble() / d.reviewList.size
+    }
+
+    fun toggleSortOrder(currentSortOption: SortingOption? = null) {
+        isReversed.value = !(isReversed.value ?: false)
+        applyCurrentFiltersAndSort()
     }
 
 }

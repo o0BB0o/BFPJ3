@@ -60,7 +60,9 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.bfpj3.R
+import com.example.bfpj3.database.FilteringOption
 import com.example.bfpj3.database.FirebaseViewModel
+import com.example.bfpj3.database.SortingOption
 import com.example.bfpj3.ui.data.Destination
 import com.example.bfpj3.ui.theme.BFPJ3Theme
 import com.google.firebase.Firebase
@@ -72,8 +74,9 @@ import com.google.firebase.firestore.firestore
 fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore) {
     val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
     val destinations by firebaseViewModel.destinations.collectAsState(listOf())
-    val currentSortOption by viewModel.currentSortOption.observeAsState(HomeViewModel.SortingOption.Name)
-    val currentCurrency by firebaseViewModel.userCurrency.collectAsState("USD")
+    val currentSortOption by firebaseViewModel.currentSortOption.observeAsState(SortingOption.Name)
+    val currentCurrency by firebaseViewModel.userCurrency.collectAsState("")
+    firebaseViewModel.getCurrentUserCurrencyFromUser(db)
     LaunchedEffect(firebaseViewModel.destinations.collectAsState()) {
         firebaseViewModel.getAllDestinations(db)
     }
@@ -83,10 +86,10 @@ fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewMode
         Row(modifier = Modifier
             .padding(start = 8.dp)
             .padding(end = 8.dp)) {
-            FilterTags(viewModel)
+            FilterTags(firebaseViewModel)
             Spacer(modifier = Modifier.weight(1f))
-            SortDropdownMenu(viewModel)
-            IconButton(onClick = { viewModel.toggleSortOrder(currentSortOption) }) {
+            SortDropdownMenu(firebaseViewModel)
+            IconButton(onClick = { firebaseViewModel.toggleSortOrder(currentSortOption) }) {
                 Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Reverse Sort Order")
             }
         }
@@ -260,9 +263,9 @@ fun SearchBar(firebaseViewModel: FirebaseViewModel, navController: NavController
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun FilterTags(viewModel: HomeViewModel) {
+fun FilterTags(firebaseViewModel: FirebaseViewModel) {
     var expanded by remember { mutableStateOf(false) }
-    var currSelection by remember { mutableStateOf(HomeViewModel.FilteringOption.None) }
+    var currSelection by remember { mutableStateOf(FilteringOption.None) }
     Column {
         TextButton(onClick = { expanded = true }) {
             Text("Filter By: ${currSelection.displayName}")
@@ -271,13 +274,13 @@ fun FilterTags(viewModel: HomeViewModel) {
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            HomeViewModel.FilteringOption.values().forEach { option ->
+            FilteringOption.values().forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option.displayName) },
                     onClick = {
                         expanded = false
                         currSelection = option
-                        viewModel.filterProducts(option)
+                        firebaseViewModel.filterProducts(option)
                     }
                 )
             }
@@ -286,9 +289,9 @@ fun FilterTags(viewModel: HomeViewModel) {
 }
 
 @Composable
-fun SortDropdownMenu(viewModel: HomeViewModel) {
+fun SortDropdownMenu(firebaseViewModel: FirebaseViewModel) {
     var expanded by remember { mutableStateOf(false) }
-    var currSelection by remember { mutableStateOf(HomeViewModel.SortingOption.Name) }
+    var currSelection by remember { mutableStateOf(SortingOption.Name) }
     Column {
         TextButton(onClick = { expanded = true }) {
             Text("Sort By: ${currSelection.displayName}")
@@ -297,14 +300,14 @@ fun SortDropdownMenu(viewModel: HomeViewModel) {
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            HomeViewModel.SortingOption.values().forEach { option ->
+            SortingOption.values().forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option.displayName) },
                     onClick = {
                         expanded = false
                         currSelection = option
-                        viewModel.currentSortOption.value = option
-                        viewModel.sortDestinations(option)
+                        firebaseViewModel.currentSortOption.value = option
+                        firebaseViewModel.sortDestinations(option)
                     }
                 )
             }

@@ -163,7 +163,6 @@ fun EditReviewDialog(review: Review, db: FirebaseFirestore, firebaseViewModel: F
         },
         confirmButton = {
             Button(onClick = {
-                // TODO: update the review
                 firebaseViewModel.updateReviewOnReview(db, review.reviewId, editedDescription,editedRating,context)
                 onDismiss()
             }) {
