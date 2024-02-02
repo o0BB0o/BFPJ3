@@ -136,7 +136,7 @@ fun ReviewsSection(destination: Destination, viewModel:HomeViewModel, db: Fireba
 fun ReviewItem(review: Review,db: FirebaseFirestore, firebaseViewModel: FirebaseViewModel) {
     Row(modifier = Modifier.padding(top = 8.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.size(100.dp)) {
-            var reviewDisplayName by remember { mutableStateOf("Deleted User") }
+            var reviewDisplayName by remember { mutableStateOf("") }
             var profileImageUri by remember { mutableStateOf("") }
             firebaseViewModel.getUserDisplayNameByUserId(db,review.userId){ name ->
                 reviewDisplayName = name
@@ -184,7 +184,6 @@ fun ReviewTitleEdit(title: String, onTitleChange: (String) -> Unit) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewContentEdit(content: String, onContentChange: (String) -> Unit) {
     val wordCount = content.trim().split("\\s+".toRegex()).count { it.isNotEmpty() }

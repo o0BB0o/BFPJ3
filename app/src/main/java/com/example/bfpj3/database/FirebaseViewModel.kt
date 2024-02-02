@@ -69,7 +69,7 @@ class FirebaseViewModel: ViewModel() {
 
     // Sorting + Filtering
     var currentSortOption = MutableLiveData<SortingOption>(SortingOption.Name)
-    var currentFilterOption: FilteringOption = FilteringOption.None
+    var currentFilterOption = MutableLiveData<FilteringOption>(FilteringOption.None)
     lateinit var allDestinations : List<Destination>
     private var isReversed = MutableLiveData<Boolean>(false)
 
@@ -585,6 +585,7 @@ class FirebaseViewModel: ViewModel() {
                             imageUrl
                         )
                         newDestinations.add(destination)
+                        Log.d(TAG, "current d name: ${destination}")
                     }
 
                     for (reviewId in reviewIdList) {
@@ -612,12 +613,11 @@ class FirebaseViewModel: ViewModel() {
                         }
                     }
                 }
-
-                _destinations.value = newDestinations
                 allDestinations = newDestinations
+                _destinations.value = newDestinations
                 applyCurrentFiltersAndSort()
                 Log.d(TAG, "success: getAllDestinations")
-                Log.d(TAG, "Destinations $newDestinations")
+                Log.d(TAG, "Destinations ${newDestinations.size}")
             }
             .addOnFailureListener { exception ->
                 Log.d(TAG, "Failed: getAllDestinations: $exception")
@@ -825,7 +825,7 @@ class FirebaseViewModel: ViewModel() {
                     if (document != null) {
                         var displayName = document.data?.get("displayName").toString()
                         if(displayName == "null"){
-                            displayName = "Deleted Account"
+                            displayName = "Deleted User"
                         }
                         callback(displayName)
                         Log.d(TAG, "getUserDisplayNameByUserId: $displayName")
@@ -1131,21 +1131,20 @@ class FirebaseViewModel: ViewModel() {
         return LocalDate.parse(dateString, formatter)
     }
 
-
     //Sorting + Filtering
-    fun sortDestinations(sortOption: SortingOption) { //TODO
+    fun sortDestinations(sortOption: SortingOption) {
         currentSortOption.value = sortOption
         applyCurrentFiltersAndSort()
     }
 
-    fun filterProducts(filterOption: FilteringOption) { //TODO
-        currentFilterOption = filterOption
+    fun filterProducts(filterOption: FilteringOption) {
+        currentFilterOption.value = filterOption
         applyCurrentFiltersAndSort()
     }
     private fun applyCurrentFiltersAndSort() {
-        val filteredList = when (currentFilterOption) {
+        val filteredList = when (currentFilterOption.value ?: FilteringOption.None) {
             FilteringOption.None -> allDestinations
-            else -> allDestinations.filter { currentFilterOption.displayName in it.tags }
+            else -> allDestinations.filter { currentFilterOption.value!!.displayName in it.tags }
         }
 
         val sortedList = when (currentSortOption.value ?: SortingOption.Name) {

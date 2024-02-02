@@ -29,11 +29,6 @@ val imageUrl: String
     }
 }
 
-data class Price(
-    val value: Double,
-    val currency: String
-)
-
 data class Review(
     var reviewId: String,
     var userId: String,

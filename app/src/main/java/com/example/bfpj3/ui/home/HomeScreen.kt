@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -109,7 +111,7 @@ fun HomeScreen(navController: NavController, firebaseViewModel: FirebaseViewMode
     }
 }
 
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterialApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun DestinationCard(destination: Destination, currentCurrency: String, firebaseViewModel: FirebaseViewModel, db: FirebaseFirestore,onClick: () -> Unit) {
     var showAddToTripDialog by remember { mutableStateOf(false) }
@@ -136,7 +138,7 @@ fun DestinationCard(destination: Destination, currentCurrency: String, firebaseV
                 Text(text = "Rating: ${viewModel.getavgRating(destination)}")
                 Text(text = "Location: ${destination.location}")
                 Text(text = "Price: ${viewModel.priceExchanger(destination.price, currentCurrency)}")
-                Row(){
+                FlowRow(){
                     destination.tags.forEach { tag ->
                         Chip(onClick = {}) {
                             Text(tag)
@@ -222,7 +224,6 @@ fun SearchBar(firebaseViewModel: FirebaseViewModel, navController: NavController
     val searchResult by firebaseViewModel.searchResultDestinations.collectAsState(listOf())
     val isDropdownVisible = text.isNotBlank() && searchResult.isNotEmpty()
     val viewModel:HomeViewModel = viewModel(LocalContext.current as ComponentActivity)
-    val focusManager = LocalFocusManager.current
     Column {
         TextField(
             value = text,
@@ -265,7 +266,7 @@ fun SearchBar(firebaseViewModel: FirebaseViewModel, navController: NavController
 @Composable
 fun FilterTags(firebaseViewModel: FirebaseViewModel) {
     var expanded by remember { mutableStateOf(false) }
-    var currSelection by remember { mutableStateOf(FilteringOption.None) }
+    val currSelection by firebaseViewModel.currentFilterOption.observeAsState(FilteringOption.None)
     Column {
         TextButton(onClick = { expanded = true }) {
             Text("Filter By: ${currSelection.displayName}")
@@ -279,7 +280,7 @@ fun FilterTags(firebaseViewModel: FirebaseViewModel) {
                     text = { Text(option.displayName) },
                     onClick = {
                         expanded = false
-                        currSelection = option
+                        //firebaseViewModel.currentFilterOption.value = option
                         firebaseViewModel.filterProducts(option)
                     }
                 )
@@ -291,7 +292,7 @@ fun FilterTags(firebaseViewModel: FirebaseViewModel) {
 @Composable
 fun SortDropdownMenu(firebaseViewModel: FirebaseViewModel) {
     var expanded by remember { mutableStateOf(false) }
-    var currSelection by remember { mutableStateOf(SortingOption.Name) }
+    val currSelection by firebaseViewModel.currentSortOption.observeAsState(SortingOption.Name)
     Column {
         TextButton(onClick = { expanded = true }) {
             Text("Sort By: ${currSelection.displayName}")
@@ -305,8 +306,7 @@ fun SortDropdownMenu(firebaseViewModel: FirebaseViewModel) {
                     text = { Text(option.displayName) },
                     onClick = {
                         expanded = false
-                        currSelection = option
-                        firebaseViewModel.currentSortOption.value = option
+                        //firebaseViewModel.currentSortOption.value = option
                         firebaseViewModel.sortDestinations(option)
                     }
                 )
