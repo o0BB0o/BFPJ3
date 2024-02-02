@@ -851,7 +851,7 @@ class FirebaseViewModel: ViewModel() {
             "destinationIdList" to newTrip.destinations,
             "numOfPeople" to newTrip.numOfPeople,
             "startDate" to newTrip.startDate.toString(),
-            "endDate" to newTrip.startDate.toString(),
+            "endDate" to newTrip.endDate.toString(),
             "title" to newTrip.title,
             "description" to newTrip.description,
             "isPublic" to newTrip.isPublic,
@@ -1142,7 +1142,7 @@ class FirebaseViewModel: ViewModel() {
         applyCurrentFiltersAndSort()
     }
 
-    fun deleteTrip(db: FirebaseFirestore, tripId:String, callback: (String) -> Unit){
+    fun deleteTrip(db: FirebaseFirestore, tripId: String, callback: (String) -> Unit) {
         val userId = getCurrentUserId()
         db.collection("users")
             .document("user $userId")
@@ -1150,23 +1150,40 @@ class FirebaseViewModel: ViewModel() {
             .addOnSuccessListener { document ->
                 if (document != null) {
                     val tripIdList = document.get("tripIdList") as? MutableList<String> ?: mutableListOf()
-                    if(tripId in tripIdList){
+                    if (tripId in tripIdList) {
                         db.collection("trips")
                             .document(tripId)
                             .delete()
-                            .addOnFailureListener { e ->
-                                Log.w(TAG, "Error delete trip tripId: $tripId", e)
+                            .addOnSuccessListener {
+                                tripIdList.remove(tripId)
+                                db.collection("users")
+                                    .document("user $userId")
+                                    .update("tripIdList", tripIdList)
+                                    .addOnSuccessListener {
+                                        callback("Trip deleted successfully.")
+                                    }
+                                    .addOnFailureListener { e ->
+                                        Log.w(TAG, "Error updating user's trip list", e)
+                                        callback("Failed to update user's trip list.")
+                                    }
                             }
-                        callback("proceed")
+                            .addOnFailureListener { e ->
+                                Log.w(TAG, "Error deleting trip", e)
+                                callback("Failed to delete trip.")
+                            }
+                    } else {
+                        callback("Trip not found in user's list.")
                     }
-                    Log.d(TAG, "Success: delete trip tripId: $tripId")
                 } else {
                     Log.d(TAG, "No such document: delete trip tripId")
+                    callback("User document not found.")
                 }
             }
             .addOnFailureListener { exception ->
-                Log.w(TAG, "Error getting documents: delete trip tripId", exception)
+                Log.w(TAG, "Error getting user document", exception)
+                callback("Failed to get user document.")
             }
     }
+
 
 }
